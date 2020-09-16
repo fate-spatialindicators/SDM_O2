@@ -1,0 +1,6 @@
+"0","above <- rep(exp(bp_po2 * slope_po2), times = nrow(dat))"
+"0","dat$po2_effect <- above"
+"0","dat$po2_effect[dat$po2<=bp_po2] = exp((dat$po2[dat$po2<=bp_po2])* slope_po2)"
+"0","ggplot(dat, aes(longitude, latitude, col = po2_effect)) + scale_colour_gradient2() +"
+"0","  geom_point(alpha=0.6, scale = 0.5) + facet_wrap(~year)"
+"2","Ignoring unknown parameters: scale"

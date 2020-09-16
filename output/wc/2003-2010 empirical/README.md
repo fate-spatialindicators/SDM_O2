@@ -1,0 +1,1 @@
+# This directory contains estimates from quadratic fits to temp model, over the period 2003-2010

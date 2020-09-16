@@ -1,0 +1,550 @@
+---
+title: "Project 2 Key"
+date: "Autumn 2020"
+output: bookdown::pdf_document2
+---
+# Introduction
+
+Predator-prey interactions are ubiquitous in nature, yet are a unique type of ecological interactions whose properties require further understanding. The most notable aspect of these interactions are that prey are beneficial for predator populations while predator populations are harmful for prey. Because of the co-dependence of these species, and the asymmetry in the direction of each population’s effect on each other, it is possible for them to be unstable. This instability arises because predation should deplete prey populations, which in turn reduces predator production and abundance, leading to enhanced prey populations.Identifying the ecological conditions under which this process is stable is well suited for ecological modeling. Unlike in real world situations, models can be used to directly measure inherent stability of equilibrium conditions. Further, modeling allows us to sequentially add or remove ecological interactions to models determine whether they stabilize or destabilize predator-prey systems.
+
+Here I develop a series of models to evaluate effect of common ecological processes on the stability of predator-prey interactions. Specifically, I develop a simple  discrete-time Lotka-Volterra model (the “base” model) that serves as a reference model to judge model stability. I then evaluate the stabilizing effects of density dependence and prey handling time, as well as the interactive effect of the two. I interpret the results of these simple models with respect to real world predator prey systems by extrapolating my understanding of mathematical models to what each implies about actual predator-prey interactions.
+
+# Models and Analysis
+
+## Discrete Time Lotka-Volterra model
+
+The core model is
+
+$$ 
+\begin{aligned}
+N_{t+1} &= N_t + aN_t - bN_t P_t \\
+P_{t+1} &= P_t + cb N_t P_t - dP_t
+\end{aligned}
+$$
+The prey isoclines are the combination of values of N and P that makes $N_{t+1} = N_t$ :
+
+$$
+\begin{aligned}
+N=0, P \in \mathbb{R}_{\geq0} \\
+N \in \mathbb{R}_{>0}, P = \frac{a}{b}
+\end{aligned}$$
+
+Where the first is the "null isocline" which means that as long as *N*=0, then *P* can take any non-negative real number.  The second is the other isocline, which is all values of *N* greater than 0, and where *P* equals the ratio of *a* to *b*.
+
+The predator isoclines are similar:
+$$ 
+\begin{aligned}
+N\in \mathbb{R}_{\geq0}, P =0 \\
+N = \frac{d}{cb}, P = \in \mathbb{R}_{>0}
+\end{aligned}$$
+
+
+In this special case where the isoclines are parallel to the axes, they give the equilbrium conditions (ignoring the trival equilibrium when both predator and prey abundance equals 0)
+
+$$
+\begin{aligned}
+N^* = \frac{d}{bc} \\
+P^* = \frac{a}{b}
+\end{aligned}$$
+
+
+```{r model1, echo  = F, fig.cap = "Time dynamics of predator and prey (left), and the model trajectory in phase-space (right). Lines denote isoclines (red = predator, blue = prey)"}
+source("get_pars.R")
+
+tmax <- 200
+years <- 0:tmax
+
+output <- matrix(NA, nrow = length(years), ncol = 2)
+
+Nstar <- d / (b * c)
+Pstar <- a / b
+
+output[1,] <- 1.1 * c(Nstar, Pstar)
+
+for (i in 1:tmax) {
+  Nt <- output[i,1]
+  Pt <- output[i,2]
+  Ntplus1 <- Nt + a * Nt - b * Nt * Pt
+  Ptplus1 <- Pt + b * c * Nt * Pt - d * Pt
+  output[i+1,] <- c(Ntplus1, Ptplus1)
+}
+
+# make two plots, one as typical time plot the other as "phase plane"
+par(mfrow = c(1,2), las =1)
+plot(years, output[,1],
+  type = "l",
+  lwd = 2,
+  xlab = "Years",
+  ylab = "Abundance",
+  col = "blue",
+  ylim = c(0, 20)
+  )
+lines(years, output[,2],
+  lwd =2,
+  col = "red"
+  )
+
+# now create phase plot
+plot(output[,1], output[,2],
+     type = "l",
+     lwd = 2,
+     col = "black",
+     xlab = "Prey",
+     ylab = "Predator",
+     xlim = c(0,15),
+     ylim = c(0,5),
+     xaxs = "i",
+     yaxs = "i",
+     las = 1)
+
+# now add isoclines
+# Prey isoclines
+abline (v = 0, col = "blue", lwd =2)
+abline(h = a / b, col  = "blue",lwd  =2)
+
+# Predator isoclines
+abline(h = 0, col = "red", lwd = 2)
+abline(v = d / (b * c), col = "red", lwd = 2)
+
+
+```
+
+The model is unstable (Figure \@ref(fig:model1)), as confirmed by calculation of the jacobian matrix evaluated at equilibrium
+
+$$
+\begin{aligned}
+\frac{\delta N_{t+1}}{\delta N_t} &= 1 + a - bP = 1 + a - b \frac{a}{b} & &= 1 \\
+\frac{\delta N_{t+1}}{\delta P_t} &=  - bN =  - b \frac{d}{bc} & &= -\frac{d}{c} \\
+\frac{\delta P_{t+1}}{\delta N_t} &= bcP = bc \frac{a}{b} & &= ac \\
+\frac{\delta P_{t+1}}{\delta P_t} &= 1 + bcN - d = 1 + bc \frac{d}{bc} -d  & &= 1 
+\end{aligned}$$
+
+The Jacobian matrix is therefore
+
+$$\begin{bmatrix}
+1 & -\frac{d}{c} \\
+ac & 1
+\end{bmatrix}
+$$
+
+The magnitude of the dominant eigenvector equals:
+```{r eigen_base, echo = F}
+source("get_pars.R")
+
+A <- matrix(NA, nrow = 2, ncol = 2)
+A[1,1] <- A[2,2] <- 1
+A[1,2] <- - d / c
+A[2,1] <- a * c
+
+eigs <- eigen(A)
+eig.mags <- sqrt(Re(eigs$values)^2 + Im(eigs$values)^2)
+dom_eigen_base <- round(eigs$values[1], 3)
+growth_base <- round((max(eig.mags) - 1) * 100,2)
+
+```
+
+The dominant eigenvalue equals `r dom_eigen_base`, which has a non-zero complex part meaning that the model will oscillate.  Furthermore, this confirms that perturbations grow by `r growth_base`% each time step.
+
+**Describe, Explain**
+The model is unstable and undergoes oscillations.  Initially prey populations decline because of the elevated predator abundance.  Once prey numbers drop below the predator isocline, the predator abundances begin to decline as well.  Once predator abundances drop below the prey isocline, prey numbers increase.  Eventually, prey numbers will increase to levels above the predator isocline, causing prey to increase again. The cycle repeats itself, growing larger in magnitude each time.  Unlike the continuous-time version of this model that is presented in the coursepack, this model is unstable because of the "discrete time penalty". That is, while the model may have been neutrally stable in continuous time, that precarious balance between stability and instability is disrupted because state variables do not change instantaneously.  This alwyas has the effect of reducing the stability of a model.
+
+
+
+## Density Dependent Model
+
+We can add density dependence to either species, but here we choose to add it to the prey population
+
+
+$$\begin{aligned}
+N_{t+1} &= N_t + aN_t \big(1 - \frac{N_t}{K}\big) - bN_t P_t \\
+P_{t+1} &= P_t + cb N_t P_t - dP_t
+\end{aligned}$$
+
+The prey isoclines are 
+
+$$ 
+\begin{aligned}
+N=0, P \in \mathbb{R}_{\geq0} \\
+P = \frac{a}{b} \big(1 - \frac{N}{K})
+\end{aligned}$$
+
+
+The predator isoclines are the same as in the base model:
+$$
+\begin{aligned}
+N\in \mathbb{R}_{\geq0}, P =0 \\
+N = \frac{d}{cb}, P \in \mathbb{R}_{>0}
+\end{aligned}$$
+
+
+The equilibrium is given by the intersection of the two isoclines:
+
+
+$$\begin{aligned}
+N^* &= \frac{d}{bc} \\
+P^* &= \frac{a}{b}\big(1-\frac{d}{bcK}\big)
+\end{aligned}
+$$
+
+```{r model2,echo = F, fig.cap = "Time dynamics of predator and prey (left), and the model trajectory in phase-space (right) for the density dependent model. Lines denote isoclines (red = predator, blue = prey)"}
+source("get_pars.R")
+
+tmax <- 200
+years <- 0:tmax
+
+output <- matrix(NA, nrow = length(years), ncol = 2)
+
+Nstar <- d / (b * c)
+Pstar <- a / b * (1 - d / (b * c * K))
+
+output[1,] <- 1.1 * c(Nstar, Pstar)
+
+for (i in 1:tmax) {
+  Nt <- output[i,1]
+  Pt <- output[i,2]
+  Ntplus1 <- Nt + a * Nt * (1 - Nt /K)- b * Nt * Pt
+  Ptplus1 <- Pt + b * c * Nt * Pt - d * Pt
+  output[i+1,] <- c(Ntplus1, Ptplus1)
+}
+
+# make two plots, one as typical time plot the other as "phase plane"
+par(mfrow = c(1,2), las =1)
+plot(years, output[,1],
+  type = "l",
+  lwd = 2,
+  xlab = "Years",
+  ylab = "Abundance",
+  col = "blue",
+  ylim = c(0, 10)
+  )
+lines(years, output[,2],
+  lwd =2,
+  col = "red"
+  )
+
+# now create phase plot
+plot(output[,1], output[,2],
+     type = "l",
+     lwd = 2,
+     col = "black",
+     xlab = "Prey",
+     ylab = "Predator",
+     xlim = c(0,10),
+     ylim = c(0,5),
+     xaxs = "i",
+     yaxs = "i",
+     las = 1)
+
+# now add isoclines
+# Prey isoclines
+abline (v = 0, col = "blue", lwd =2)
+abline(a = a / b, b = - a/(b*K), col  = "blue",lwd  =2)
+
+# Predator isoclines
+abline(h = 0, col = "red", lwd = 2)
+abline(v = d / (b * c), col = "red", lwd = 2)
+
+```
+
+The model appears to be stable (Figure \@ref(fig:model2)), which we confirm by calculating the jacobian matrix
+
+$$
+\begin{aligned}
+\frac{\delta N_{t+1}}{\delta N_t} &= 1 + a - 2\frac{a}{k}N - bP &  &= 1- \frac{ad}{bcK} \\
+\frac{\delta N_{t+1}}{\delta P_t} &=  - bN =  - b \frac{d}{bc} & &= -\frac{d}{c} \\
+\frac{\delta P_{t+1}}{\delta N_t} &= bcP  & &= ac - \frac{ad}{bK} \\
+\frac{\delta P_{t+1}}{\delta P_t} &= 1 + bcN - d = 1 + bc \frac{d}{bc} -d & &= 1 
+\end{aligned}
+$$
+
+Note here I completed the algebra by substituting the expresions for equilibrium prey and an predator abundances, but you will get the same answer if you leave the expression unsimplified and calculate them using your calculated equilibrium values.
+
+The Jacobian matrix is therefore
+
+$$\begin{bmatrix}
+1 - \frac{ad}{bcK} & -\frac{d}{c} \\
+ac - \frac{ad}{bK} & 1
+\end{bmatrix}
+$$
+
+
+
+We then calculate the dominant eigenvalue magnitude
+
+```{r eigen_dd, echo = F}
+source("get_pars.R")
+
+A <- matrix(NA, nrow = 2, ncol = 2)
+A[1,1] <- 1 - a*d / (b * c * K)
+A[1,2] <- - d / c
+A[2,1] <- a * c - a*d / (b * K)
+A[2,2] <- 1
+
+eigs <- eigen(A)
+eig.mags <- sqrt(Re(eigs$values)^2 + Im(eigs$values)^2)
+dom_eigen_dd <- round(eigs$values[1], 3)
+growth_dd <- round((max(eig.mags) - 1) * 100,2)
+
+```
+
+Once again, the dominant eigenvalue has a complex part (eigenvalue = `r dom_eigen_dd`) so will undergo oscillations, and the  magnitude of the dominant eigenvalue confirms that the perturbation decline by `r growth_dd`% in each time step
+
+**Describe, Explain**
+
+Density-dependence in the prey population stabilizes the model so that oscillations decrease over time.  As in the base model, prey abundance declines initially and the predator population responds by declining as well.  Prey abundance increases due to decreased predation pressure but does not increase as dramatically as it would in the absence of density-dependence.  Similarly, when prey abundance is moving towards zero, its productivity is enhanced by the relaxation of density dependence.  So both the up and downswings are reduced.  
+
+We conclude that density dependence, by creating an negative feedback into the system, has a stabilizing effect on predator prey interactions and can overcome the unstable behavior of the base model
+
+
+## Handling time
+
+We modify our equation to add a "type 2 functional response", which means that predators have a constraint on how many prey they can consume because they have to expend time handling captured prey.  The new recursive equations are
+
+$$ 
+\begin{aligned}
+N_{t+1} &= N_t + aN_t \big(1 - \frac{N_t}{K}\big) - \frac{bN_t P_t}{1 + bhN_t} \\
+P_{t+1} &= P_t + c\frac{bN_t P_t}{1 + bhN_t} - dP_t
+\end{aligned}
+$$
+
+The prey isoclines are given by
+$$ 
+\begin{aligned}
+N=0, P \in \mathbb{R}_{\geq0} \\
+P = \frac{a}{b}\frac{K + K hbN-N-hbN^2}{K}
+\end{aligned}$$
+
+and the predator isoclines are given by:
+$$ 
+\begin{aligned}
+N \in \mathbb{R}_{\geq0}, P=0 \\
+N = \frac{d}{b(c-dh)}, P \in \mathbb{R}_{>0} 
+\end{aligned}$$
+
+The Equilibrium is a messy expression, which we make easier by using the $N^*$ notation to refer to equilibrium prey abundance, so that
+
+$$
+\begin{aligned}
+N^* &=  \frac{d}{b(c-dh)} \\
+P^* &= \frac{a}{b} \frac{K + KhbN^* - N^* - hbN^{*2}}{K}
+\end{aligned}
+$$
+
+We will consider the dynamics of the model under two different values of *K*. First, *K* = 15 as was used above
+
+```{r model3, echo = F, fig.cap="Time dynamics of predator and prey (left), and the model trajectory in phase-space (right) for the density dependent model+ handling time model, where h = 0.05 and K = 15. Lines denote isoclines (red = predator, blue = prey)"}
+
+source("get_pars.R")
+
+tmax <- 200
+years <- 0:tmax
+
+output <- matrix(NA, nrow = length(years), ncol = 2)
+
+Nstar <- d / (b *(c- d*h))
+Pstar <- a / b * (K  + K * h * b * Nstar - Nstar - h * b * Nstar^2) / K
+
+output[1,] <- 1.1 * c(Nstar, Pstar)
+
+for (i in 1:tmax) {
+  Nt <- output[i,1]
+  Pt <- output[i,2]
+  Ntplus1 <- Nt + a * Nt * (1 - Nt /K)- b * Nt * Pt / (1 + b * h * Nt)
+  Ptplus1 <- Pt + b * c * Nt * Pt/(1+b * h * Nt) - d * Pt
+  output[i+1,] <- c(Ntplus1, Ptplus1)
+}
+
+# make two plots, one as typical time plot the other as "phase plane"
+par(mfrow = c(1,2), las =1)
+plot(years, output[,1],
+  type = "l",
+  lwd = 2,
+  xlab = "Years",
+  ylab = "Abundance",
+  col = "blue",
+  ylim = c(0, 10)
+  )
+lines(years, output[,2],
+  lwd =2,
+  col = "red"
+  )
+
+# now create phase plot
+plot(output[,1], output[,2],
+     type = "l",
+     lwd = 2,
+     col = "black",
+     xlab = "Prey",
+     ylab = "Predator",
+     xlim = c(0,10),
+     ylim = c(0,5),
+     xaxs = "i",
+     yaxs = "i",
+     las = 1)
+
+# now add isoclines
+# Prey isoclines
+abline (v = 0, col = "blue", lwd =2)
+niso.list <- seq(0, 15, length.out = 100)
+p.for.n.iso <- a / b * (K + K * h * b * niso.list - niso.list - h*b * niso.list^2) / K
+lines(niso.list, p.for.n.iso,
+      lwd = 2,
+      col = "blue")
+
+# Predator isoclines
+abline(h = 0, col = "red", lwd = 2)
+abline(v = d / (b *( c-d*h)), col = "red", lwd = 2)
+
+```
+
+This model appears to be stable (Figure \@ref(fig:model3)), although it is taking a long time to reach equilibrium. We calculate the jacobian (but not bothering with substituting equilibrium expressions which are horrendous)
+
+$$
+\begin{aligned}
+\frac{\delta N_{t+1}}{\delta N_t}&= 1 + a - 2\frac{a}{K}N^* - \frac{bP^*}{(1+hbN^*)^2} \\
+\frac{\delta N_{t+1}}{\delta P_t}&=-\frac{bN^*}{1+hbN^*} \\
+\frac{\delta P_{t+1}}{\delta N_t}&= \frac{cbP^*}{(1+hbN^*)^2} \\
+\frac{\delta P_{t+1}}{\delta P_t}&=1 + \frac{cbN^*}{1+hbN^*} - d
+\end{aligned}
+$$
+
+We use these expressions along with the equilibrium expressions to solve for the dominant eigenvalue  magnitude
+
+```{r eigen_dd_hh, echo = F}
+source("get_pars.R")
+
+Nstar <- d / (b * (c  - d * h))
+Pstar <- a / b * (K + K * h * b * Nstar - Nstar -h * b * Nstar^2) /K
+
+
+
+A <- matrix(NA, nrow = 2, ncol = 2)
+A[1,1] <- 1 + a - 2* a* Nstar / K - b * Pstar / (1 + h* b * Nstar)^2
+A[1,2] <- - b*Nstar / (1 + h * b * Nstar)
+A[2,1] <- c* b * Pstar / (1 + h * b * Nstar)^2
+A[2,2] <- 1 + c*b * Nstar / (1 + h * b * Nstar) - d
+
+eigs <- eigen(A)
+eig.mags <- sqrt(Re(eigs$values)^2 + Im(eigs$values)^2)
+dom_eigen_full_1 <- round(eigs$values[1], 3)
+growth_full_1 <- round((max(eig.mags) - 1) * 100,2)
+
+```
+
+The eigenvalue has a non-zero complex part (eigenvalue = `r dom_eigen_full_1`), meaning that the model will oscillate, and the dominant eigenvalue confirms that the perturbations from equilibrium are declining by `r growth_full_1`% per year
+
+We repeat the model, but setting K to 30 (weakening density dependence)
+
+```{r model4, echo = F, fig.cap="Time dynamics of predator and prey (left), and the model trajectory in phase-space (right) for the density dependent model+ handling time model, where h= 0.05 K = 30 Lines denote isoclines (red = predator, blue = prey)"}
+
+source("get_pars.R")
+# overwrite K
+K <- 30
+
+tmax <- 200
+years <- 0:tmax
+
+output <- matrix(NA, nrow = length(years), ncol = 2)
+
+Nstar <- d / (b *(c- d*h))
+Pstar <- a / b * (K  + K * h * b * Nstar - Nstar - h * b * Nstar^2) / K
+
+output[1,] <- 1.1 * c(Nstar, Pstar)
+
+for (i in 1:tmax) {
+  Nt <- output[i,1]
+  Pt <- output[i,2]
+  Ntplus1 <- Nt + a * Nt * (1 - Nt /K)- b * Nt * Pt / (1 + b * h * Nt)
+  Ptplus1 <- Pt + b * c * Nt * Pt/(1+b * h * Nt) - d * Pt
+  output[i+1,] <- c(Ntplus1, Ptplus1)
+}
+
+# make two plots, one as typical time plot the other as "phase plane"
+par(mfrow = c(1,2), las =1)
+plot(years, output[,1],
+  type = "l",
+  lwd = 2,
+  xlab = "Years",
+  ylab = "Abundance",
+  col = "blue",
+  ylim = c(0, 10)
+  )
+lines(years, output[,2],
+  lwd =2,
+  col = "red"
+  )
+
+# now create phase plot
+plot(output[,1], output[,2],
+     type = "l",
+     lwd = 2,
+     col = "black",
+     xlab = "Prey",
+     ylab = "Predator",
+     xlim = c(0,10),
+     ylim = c(0,5),
+     xaxs = "i",
+     yaxs = "i",
+     las = 1)
+
+# now add isoclines
+# Prey isoclines
+abline (v = 0, col = "blue", lwd =2)
+niso.list <- seq(0, 15, length.out = 100)
+p.for.n.iso <- a / b * (K + K * h * b * niso.list - niso.list - h*b * niso.list^2) / K
+lines(niso.list, p.for.n.iso,
+      lwd = 2,
+      col = "blue")
+
+# Predator isoclines
+abline(h = 0, col = "red", lwd = 2)
+abline(v = d / (b *( c-d*h)), col = "red", lwd = 2)
+```
+
+The model appears unstable (oscillations are growing;Figure \@ref(fig:model4)), which we again confirm by calculating the magnitude of the dominant eigenvalue
+
+```{r eigen_dd_hh2, echo = F}
+source("get_pars.R")
+K<-30
+
+Nstar <- d / (b * (c  - d * h))
+Pstar <- a / b * (K + K * h * b * Nstar - Nstar -h * b * Nstar^2) /K
+
+
+
+A <- matrix(NA, nrow = 2, ncol = 2)
+A[1,1] <- 1 + a - 2* a* Nstar / K - b * Pstar / (1 + h* b * Nstar)^2
+A[1,2] <- - b*Nstar / (1 + h * b * Nstar)
+A[2,1] <- c* b * Pstar / (1 + h * b * Nstar)^2
+A[2,2] <- 1 + c*b * Nstar / (1 + h * b * Nstar) - d
+
+eigs <- eigen(A)
+eig.mags <- sqrt(Re(eigs$values)^2 + Im(eigs$values)^2)
+dom_eigen_full_2 <- round(eigs$values[1], 3)
+growth_full_2 <- round((max(eig.mags) - 1) * 100,2)
+
+```
+The perturbations are growing by `r growth_full_2`4% per year, oscillating away from equilibrium as indicated by the non-zero complex part of the dominant eigenvalue (`r dom_eigen_full_2`).
+
+**Describe, explain**
+
+The addition of handling time generally reduces the stability of the model.  When handling time is included in the model, it takes predators more effient when prey are scarce, and less efficient when prey are abundant.  This is a positive feedback, which acts on both the upswings and the downswings in prey cycles.  In otherwords, when prey are abundant, it takes a long time for the predator populations to grow to the point where they can lead to a reduction in prey.  When prey are scarce, it takes a long time for the predators to become sufficiently scarce themselves to allow prey to start growing.  Thus, both the upwsings and downswings become more pronounced
+
+More broadly, putting handling time into the model created a situation where prey mortality rate is inversely proportional to prey abundance.  When prey are abundant, a lower fraction of them are killed than when they are scarce.  This creates a positive, destabilizing feedback.  
+
+When K was relatively low (15), this de-stablizing force was not strong enough to make the overal model unstable.  This is because there was sufficiently strong stabilizing effect of the prey carrying capacity to overwhelm the destabilizing effect of prey handling time.  
+
+However, when we weakened prey density dependence by doubling *K*, the stabilizing effects of density dependence was insufficient to overcome the destablizing effects of the functional response.
+
+
+# Discussion
+
+We can interpet any predator-prey system as a battle among stabilizing and destabilizing processes.  The addition of a destabilizing process (here, handling time but other things can cause positive feedbacks) can be accommodated by the model as long as there is another stabilizing process (here, density dependence) that can counter it.  
+
+This finding is likely broadly applicable.  There are any number of processes that might push a model to instability.  And there are equally numerous process that might encourage stability.  Examining any one of these in isolation is likely misleading, because the net behavior of a system is determined by the sum of these stablizing and destabilizing forces.  Here we examped predator-prey systems, but the same logic can be applied to *any* system of state variables.  
+
+Of course, we achieved these generalized results through very low-detailed models that lack any connection to a specific predator and prey pair.  Moreover, we isolated predators and prey from the broader food web, where there might be other predators on prey, and other prey for predators.  As a result, this model is not terribly useful for making any type of precise prediction for a specific ecological system, although it gives us the tools to ask the right questions to develop those predictions.
+
+The model also illustrated that systems that have distinct pulses of events that are best represented through discrete time, are more likely to become unstable than those that are better modeled in continuous time.  In simple terms, it means that the rules that govern outcomes in microbial communities (continuos time) are probably not the same as those that govern outcomes for perennial plants, or animals with distinct seasonality with reproductive pulses.  
+
+The hypotheses generated here could be tested in experimental settings.  Given a predator with a known functional response, prey populations could be given situations with different levels of resource availability that will either strengthen or weaken density depdnence.  You could then evaluate whether in real-world populations the outcome of a predator prey system is governed by the result of two competing processes.

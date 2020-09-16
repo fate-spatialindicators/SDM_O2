@@ -1,0 +1,25 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1599923947356.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "4126439266",
+    "id" : "79A294DD",
+    "lastKnownWriteTime" : 1599923954,
+    "last_content_update" : 1599923954224,
+    "path" : "~/Dropbox/Desktop/Rcode/consonants/code/run_wc_models_MI_v2.R",
+    "project_path" : "code/run_wc_models_MI_v2.R",
+    "properties" : {
+        "cursorPosition" : "244,54",
+        "scrollLine" : "232"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 2,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

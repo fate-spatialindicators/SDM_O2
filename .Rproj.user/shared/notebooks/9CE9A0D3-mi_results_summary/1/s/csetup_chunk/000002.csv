@@ -1,0 +1,6 @@
+"0","knitr::opts_chunk$set(echo = TRUE)"
+"0","library(sdmTMB)"
+"0","library(dplyr)"
+"0","library(sp)"
+"0","library(gsw)"
+"0","library(ggplot2)"
