@@ -1,4 +1,4 @@
-#devtools::install_github("pbs-assess/sdmTMB")
+devtools::install_github("pbs-assess/sdmTMB")
 rm(list = ls())
 source("code/mi_functions.R")
 
@@ -6,7 +6,6 @@ library(sdmTMB)
 library(dplyr)
 library(sp)
 library(gsw)
-library(ggplot2)
 dat <- load_data()
 
 # rescale variables
@@ -62,8 +61,9 @@ for(i in 1:length(m_df)){
       x = "longitude", 
       y = "latitude",
       time = NULL,
-      k_folds = 4,
+      k_folds = 10,
       n_knots = 250,
+      knot_type = "fixed",
       seed = 10,
       family = tweedie(link = "log"),
       anisotropy = TRUE,
