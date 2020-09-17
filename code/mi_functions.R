@@ -63,7 +63,7 @@ load_data <- function() {
   # species-specific parameters
   Ao = 1.16625e-13
   Eo = 0.8736 * 0.5 # from cod, 0.8736.  Make it one half or double
-  B = 3000 # size in grams, roughly average (initial calculations used 10000g)
+  B = 1200 # size in grams, roughly average (initial calculations used 10000g)
   n = -0.208 # borrowed from cod 
   
   dat$mi = B^n*Ao*dat$po2/exp(-1*Eo/(boltz*(dat$temp+kelvin)))
