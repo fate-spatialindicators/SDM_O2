@@ -59,7 +59,7 @@ for(i in 1:length(m_df)){
     
     if(class(m)!="try-error") {
       saveRDS(m, file = paste0("output/wc/model_",i,"_MI_cv.rds"))
-      m_df$tweedie_dens[i] = m$sum_loglik
+      tweedie_dens[i] = m$sum_loglik
     }
     
   } else {
