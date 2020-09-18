@@ -1,0 +1,136 @@
+         sp  survey
+1 sablefish SYN QCS
+                                                [,1]
+space + depth + year                          154.29
+space + depth + year + temp                   155.49
+space + depth + year + o2                      39.96
+space + depth + year + p02                     43.88
+space + depth + year + mi                      30.41
+space + depth + year + temp + o2                0.34
+space + depth + year + temp:o2                  8.50
+space + depth + year + temp + po2               0.00
+space + depth + year + temp:po2                36.86
+space + depth + year + o2(breakpoint)          53.06
+space + depth + year + o2(breakpoint) + temp   39.10
+space + depth + year + po2(breakpoint)         58.72
+space + depth + year + po2(breakpoint) + temp  17.16
+space + depth + year + mi(breakpoint)          47.72
+         sp survey
+2 sablefish SYN HS
+                                                [,1]
+space + depth + year                            8.99
+space + depth + year + temp                     6.30
+space + depth + year + o2                       7.63
+space + depth + year + p02                      7.97
+space + depth + year + mi                       6.62
+space + depth + year + temp + o2              263.91
+space + depth + year + temp:o2                262.77
+space + depth + year + temp + po2             263.09
+space + depth + year + temp:po2               277.26
+space + depth + year + o2(breakpoint)           0.33
+space + depth + year + o2(breakpoint) + temp      NA
+space + depth + year + po2(breakpoint)          2.56
+space + depth + year + po2(breakpoint) + temp     NA
+space + depth + year + mi(breakpoint)           0.00
+         sp   survey
+3 sablefish SYN WCVI
+                                                [,1]
+space + depth + year                           11.65
+space + depth + year + temp                    12.07
+space + depth + year + o2                       7.80
+space + depth + year + p02                      7.85
+space + depth + year + mi                       8.28
+space + depth + year + temp + o2              205.77
+space + depth + year + temp:o2                203.90
+space + depth + year + temp + po2             205.69
+space + depth + year + temp:po2               229.80
+space + depth + year + o2(breakpoint)           0.66
+space + depth + year + o2(breakpoint) + temp      NA
+space + depth + year + po2(breakpoint)          0.27
+space + depth + year + po2(breakpoint) + temp     NA
+space + depth + year + mi(breakpoint)           0.00
+         sp   survey
+4 sablefish SYN WCHG
+                                              [,1]
+space + depth + year                          0.88
+space + depth + year + temp                   3.60
+space + depth + year + o2                     0.73
+space + depth + year + p02                    1.08
+space + depth + year + mi                     0.00
+space + depth + year + temp + o2                NA
+space + depth + year + temp:o2                  NA
+space + depth + year + temp + po2               NA
+space + depth + year + temp:po2                 NA
+space + depth + year + o2(breakpoint)         4.76
+space + depth + year + o2(breakpoint) + temp    NA
+space + depth + year + po2(breakpoint)        3.95
+space + depth + year + po2(breakpoint) + temp   NA
+space + depth + year + mi(breakpoint)         4.39
+           sp  survey
+5 pacific cod SYN QCS
+                                               [,1]
+space + depth + year                          52.92
+space + depth + year + temp                   52.09
+space + depth + year + o2                     53.03
+space + depth + year + p02                    52.43
+space + depth + year + mi                     54.81
+space + depth + year + temp + o2              39.23
+space + depth + year + temp:o2                53.07
+space + depth + year + temp + po2             38.73
+space + depth + year + temp:po2                3.11
+space + depth + year + o2(breakpoint)         29.36
+space + depth + year + o2(breakpoint) + temp   0.00
+space + depth + year + po2(breakpoint)        24.74
+space + depth + year + po2(breakpoint) + temp  8.52
+space + depth + year + mi(breakpoint)         29.89
+           sp survey
+6 pacific cod SYN HS
+                                                [,1]
+space + depth + year                            0.59
+space + depth + year + temp                     0.10
+space + depth + year + o2                       0.72
+space + depth + year + p02                      0.17
+space + depth + year + mi                       2.84
+space + depth + year + temp + o2              154.69
+space + depth + year + temp:o2                158.23
+space + depth + year + temp + po2             155.04
+space + depth + year + temp:po2               163.16
+space + depth + year + o2(breakpoint)           0.00
+space + depth + year + o2(breakpoint) + temp      NA
+space + depth + year + po2(breakpoint)          0.61
+space + depth + year + po2(breakpoint) + temp     NA
+space + depth + year + mi(breakpoint)           1.90
+           sp   survey
+7 pacific cod SYN WCVI
+                                                [,1]
+space + depth + year                           29.18
+space + depth + year + temp                    30.20
+space + depth + year + o2                      29.23
+space + depth + year + p02                     29.83
+space + depth + year + mi                      26.70
+space + depth + year + temp + o2              114.09
+space + depth + year + temp:o2                127.90
+space + depth + year + temp + po2             115.25
+space + depth + year + temp:po2               130.72
+space + depth + year + o2(breakpoint)           0.89
+space + depth + year + o2(breakpoint) + temp  131.51
+space + depth + year + po2(breakpoint)          0.00
+space + depth + year + po2(breakpoint) + temp 131.66
+space + depth + year + mi(breakpoint)           4.77
+           sp   survey
+8 pacific cod SYN WCHG
+                                               [,1]
+space + depth + year                           8.12
+space + depth + year + temp                    1.31
+space + depth + year + o2                      0.36
+space + depth + year + p02                     0.00
+space + depth + year + mi                      2.14
+space + depth + year + temp + o2                 NA
+space + depth + year + temp:o2                   NA
+space + depth + year + temp + po2                NA
+space + depth + year + temp:po2                  NA
+space + depth + year + o2(breakpoint)         10.36
+space + depth + year + o2(breakpoint) + temp     NA
+space + depth + year + po2(breakpoint)        11.10
+space + depth + year + po2(breakpoint) + temp    NA
+space + depth + year + mi(breakpoint)         10.45

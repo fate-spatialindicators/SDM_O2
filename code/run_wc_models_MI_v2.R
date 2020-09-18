@@ -1,4 +1,4 @@
-#devtools::install_github("pbs-assess/sdmTMB")
+devtools::install_github("pbs-assess/sdmTMB")
 rm(list = ls())
 source("code/mi_functions.R")
 
@@ -6,7 +6,6 @@ library(sdmTMB)
 library(dplyr)
 library(sp)
 library(gsw)
-library(ggplot2)
 dat <- load_data()
 
 # rescale variables
@@ -22,19 +21,6 @@ std.mi <- sd(dat$mi)
 dat$mi = scale(dat$mi)
 dat$o2 = scale(dat$o2)
 dat$po2 <- scale(dat$po2)
-
-
-# UTM transformation
-dat_ll = dat
-coordinates(dat_ll) <- c("longitude_dd", "latitude_dd")
-proj4string(dat_ll) <- CRS("+proj=longlat +datum=WGS84")
-# convert to utm with spTransform
-dat_utm = spTransform(dat_ll, 
-                      CRS("+proj=utm +zone=10 +datum=WGS84 +units=km"))
-# convert back from sp object to data frame
-dat = as.data.frame(dat_utm)
-dat = dplyr::rename(dat, longitude = longitude_dd, 
-                    latitude = latitude_dd)
 
 
 # run models for each combination of settings/covariates in df ------------
@@ -58,12 +44,13 @@ for(i in 1:length(m_df)){
   if(use_cv==TRUE) {
     m <- try(sdmTMB_cv(
       formula = as.formula(formula),
-      data = sub,
+      data = dat,
       x = "longitude", 
       y = "latitude",
       time = NULL,
-      k_folds = 4,
+      k_folds = 10,
       n_knots = 250,
+      knot_type = "fixed",
       seed = 10,
       family = tweedie(link = "log"),
       anisotropy = TRUE,
@@ -72,7 +59,7 @@ for(i in 1:length(m_df)){
     
     if(class(m)!="try-error") {
       saveRDS(m, file = paste0("output/wc/model_",i,"_MI_cv.rds"))
-      m_df$tweedie_dens[i] = m$sum_loglik
+      tweedie_dens[i] = m$sum_loglik
     }
     
   } else {
