@@ -1,1 +1,4 @@
 .DS_Store
+*.rds
+wc_grid.csv
+joined_nwfsc_data.csv
