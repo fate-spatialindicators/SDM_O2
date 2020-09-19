@@ -62,7 +62,7 @@ load_data <- function() {
   
   # species-specific parameters
   Ao = 1.16625e-13
-  Eo = 0.8736 * 0.5 # from cod, 0.8736.  Make it one half or double
+  Eo = 0.8736 # from cod, 0.8736.  Make it one half or double
   B = 1200 # size in grams, roughly average (initial calculations used 10000g)
   n = -0.208 # borrowed from cod 
   
@@ -115,3 +115,11 @@ get_models <- function() {
                                       )
 }
                       
+get_bp_parameters <- function(m) {
+  fixed_effects <- m$model$par
+  bp_ind <- grep("b_threshold", names(fixed_effects))
+  bp <- fixed_effects[bp_ind[2]]
+  slope <- fixed_effects[bp_ind[1]]
+  return(c(bp, slope))
+}
+  
