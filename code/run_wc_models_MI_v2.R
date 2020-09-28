@@ -32,8 +32,8 @@ dat$po2 <- scale(dat$po2)
 
 # Run alternative models  -----------------------------------------------------
 
-use_cv = FALSE # specify whether to do cross validation or not
-use_AIC = TRUE # specify whether to use AIC
+use_cv = TRUE # specify whether to do cross validation or not
+use_AIC = FALSE # specify whether to use AIC
 spde <- make_spde(x = dat$longitude, y = dat$latitude, n_knots = 250) # choose # knots
 
 m_df <- get_models();
@@ -55,7 +55,6 @@ for(i in 1:length(m_df)){
       time = NULL,
       spde = spde,
       k_folds = 10,
-      seed = 999,
       family = tweedie(link = "log"),
       anisotropy = TRUE,
       spatial_only = TRUE
