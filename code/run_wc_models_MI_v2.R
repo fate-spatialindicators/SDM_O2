@@ -1,11 +1,18 @@
+# Install latest version of sdmTMB ----------------------------------------
 devtools::install_github("pbs-assess/sdmTMB")
+
+# Initialize with packages and functions ------------------------------------------------
 rm(list = ls())
 source("code/mi_functions.R")
-
 library(sdmTMB)
 library(dplyr)
 library(sp)
 library(gsw)
+
+
+# load and scale data -----------------------------------------------------
+
+
 dat <- load_data()
 
 # rescale variables
@@ -23,7 +30,7 @@ dat$o2 = scale(dat$o2)
 dat$po2 <- scale(dat$po2)
 
 
-# run models for each combination of settings/covariates in df ------------
+# Run alternative models  -----------------------------------------------------
 
 use_cv = FALSE # specify whether to do cross validation or not
 use_AIC = TRUE # specify whether to use AIC
@@ -45,13 +52,10 @@ for(i in 1:length(m_df)){
     m <- try(sdmTMB_cv(
       formula = as.formula(formula),
       data = dat,
-      x = "longitude", 
-      y = "latitude",
       time = NULL,
+      spde = spde,
       k_folds = 10,
-      n_knots = 250,
-      knot_type = "fixed",
-      seed = 10,
+      seed = 999,
       family = tweedie(link = "log"),
       anisotropy = TRUE,
       spatial_only = TRUE
@@ -81,13 +85,15 @@ for(i in 1:length(m_df)){
   }
 }
 
-# Use this if using AIC
+# If using AIC, calculate AIC and dAIC ------------------------------------
 if (use_AIC) {
 for (i in 1:length(m_df)) {
   filename <- paste0("output/wc/model_",i,"_MI.rds")
   m <- readRDS(filename)
   AICmat[i,1] <-AIC(m)
 }
+
+
 
 dAIC[,1] <- AICmat[,1] - min(AICmat[,1])
 dAIC[,1] <-as.numeric(sprintf(dAIC,fmt = '%.2f'))
