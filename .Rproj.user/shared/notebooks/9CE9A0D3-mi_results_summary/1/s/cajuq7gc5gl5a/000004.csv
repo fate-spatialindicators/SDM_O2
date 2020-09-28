@@ -1,8 +1,0 @@
-"0","dat <- load_data()"
-"0","plot(dat$po2, dat$o2,"
-"0","type = ""p"","
-"0","pch = 21,"
-"0","bg = ""black"","
-"0","xlab = ""Partial pressure of oxygen"","
-"0","ylab = ""Dissolved oxygen mg / l"""
-"0",")"
