@@ -12,32 +12,35 @@ library(gsw)
 
 # load and scale data -----------------------------------------------------
 
-
 dat <- load_data()
 
 # rescale variables
-dat$depth = scale(log(dat$depth))
-dat$temp = scale(dat$temp)
-
+mean.depth <- mean(log(dat$depth))
+std.depth <- sd(log(dat$depth))
+mean.temp <- mean(dat$temp)
+std.temp <- sd(dat$temp)
 mean.po2 <- mean(dat$po2)
 std.po2 <- sd(dat$po2)
 mean.do <- mean(dat$o2)
 std.do <- sd(dat$o2)
 mean.mi <- mean(dat$mi)
 std.mi <- sd(dat$mi)
-dat$mi = scale(dat$mi)
-dat$o2 = scale(dat$o2)
-dat$po2 <- scale(dat$po2)
+
+dat$depth <- as.numeric(scale(log(dat$depth)))
+dat$temp <- as.numeric(scale(dat$temp))
+dat$mi <- as.numeric(scale(dat$mi))
+dat$o2 <- as.numeric(scale(dat$o2))
+dat$po2 <- as.numeric(scale(dat$po2))
 
 
 # Run alternative models  -----------------------------------------------------
 
-use_cv = TRUE # specify whether to do cross validation or not
-use_AIC = FALSE # specify whether to use AIC
+use_cv = FALSE # specify whether to do cross validation or not
+use_AIC = TRUE # specify whether to use AIC
 spde <- make_spde(x = dat$longitude, y = dat$latitude, n_knots = 250) # choose # knots
 
 m_df <- get_models();
-AICmat <- dAIC <- tweedie_dens <- matrix(NA, nrow = length(m_df), ncol =1 ) # set up array for tweedie density
+AICmat <- dAIC <- tweedie_dens <- matrix(NA, nrow = length(m_df), ncol = 1) # set up array for tweedie density
 rownames(AICmat) <- rownames(dAIC) <- rownames(tweedie_dens) <- m_df
 
 
