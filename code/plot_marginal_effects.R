@@ -40,18 +40,21 @@ p_depth <- predict(m_po2, newdata = nd_depth, se_fit = TRUE, re_form = NA, xy_co
 
 # plot predictions with uncertainty
 z <- 1.645 # for 90% CI
-ggplot(p_temp, aes(back.convert(temp, attr(dat$temp, "scaled:center"), attr(dat$temp, "scaled:scale")), exp(est), 
+plot_temp <- ggplot(p_temp, aes(back.convert(temp, attr(dat$temp, "scaled:center"), attr(dat$temp, "scaled:scale")), exp(est), 
                    ymin = exp(est - z * est_se), ymax = exp(est + z * est_se))) +
   geom_line() + geom_ribbon(alpha = 0.4) + 
   scale_y_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.1))) +
-  labs(x = "Temperature (°C)", y = bquote('Population Density'~(kg~km^-2)))
-ggplot(p_o2, aes(back.convert(po2, attr(dat$po2, "scaled:center"), attr(dat$po2, "scaled:scale")), exp(est), 
+  labs(x = "Temperature (°C)", y = NULL)
+plot_o2 <- ggplot(p_o2, aes(back.convert(po2, attr(dat$po2, "scaled:center"), attr(dat$po2, "scaled:scale")), exp(est), 
                  ymin = exp(est - z * est_se), ymax = exp(est + z * est_se))) +
   geom_line() + geom_ribbon(alpha = 0.4) + 
   scale_y_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.1))) +
   labs(x = "Partial Pressure of Oxygen", y = bquote('Population Density'~(kg~km^-2)))
-ggplot(p_depth, aes(exp(back.convert(depth, attr(dat$depth, "scaled:center"), attr(dat$depth, "scaled:scale"))), 
+plot_depth <- ggplot(p_depth, aes(exp(back.convert(depth, attr(dat$depth, "scaled:center"), attr(dat$depth, "scaled:scale"))), 
                     exp(est), ymin = exp(est - z * est_se), ymax = exp(est + z * est_se))) +
   geom_line() + geom_ribbon(alpha = 0.4) + 
   scale_y_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.1))) +
-  labs(x = "Bottom Depth (m)", y = bquote('Population Density'~(kg~km^-2)))
+  labs(x = "Bottom Depth (m)", y = NULL)
+
+multipanel <- gridExtra::grid.arrange(plot_o2, plot_temp, plot_depth, nrow = 1, ncol = 3)
+ggsave("output/wc/marginal_effects.pdf", width = 9, height = 3, units = "in")
