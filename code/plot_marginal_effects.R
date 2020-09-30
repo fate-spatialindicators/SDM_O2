@@ -27,8 +27,8 @@ nd_po2 <- data.frame(po2 = seq(min(dat$po2), max(dat$po2), length.out = 100),
                      year = 2010L)
 
 # BELOW 2 LINES CAUSING R TO CRASH
-p_temp <- predict(m_po2, newdata = nd_temp, se_fit = TRUE, re_form = NA)
-p_o2 <- predict(m_po2, newdata = nd_po2, se_fit = TRUE, re_form = NA)
+p_temp <- predict(m_po2, newdata = nd_temp, se_fit = TRUE, re_form = NA, xy_cols = c("longitude", "latitude"))
+p_o2 <- predict(m_po2, newdata = nd_po2, se_fit = TRUE, re_form = NA, xy_cols = c("longitude", "latitude"))
 
 ggplot(p_temp, aes(back.convert(temp, 6.832134, 2.007563), exp(est), ymin = exp(est - 1.96 * est_se), ymax = exp(est + 1.96 * est_se))) +
   geom_line() + geom_ribbon(alpha = 0.4)
