@@ -1,17 +1,23 @@
 ---
 title: "Summary of Sablefish SDM Results"
-output: bookdown::pdf_document2
+output: html_document
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r more_setup, echo = FALSE}
+source("code/mi_functions.R")
+formulas <- get_models()
 library(sdmTMB)
 library(dplyr)
 library(sp)
 library(gsw)
 library(ggplot2)
-```
+library(viridis)
 
+```
 ## Background
 
 Species distribution modeling attempts to predict local abundance from environmental attributes. One key challenge is that a number of these environmental variables co-vary, and have strong spatial structure.  Contemporary spatial models allow us to ask whether the addition of an environmental covariate leads to better predictions than modeling spatial structure alone.  However, the choice of environmental variables, and the functional form linking environment to species local density needs to be informed by physiological and ecological mechanisms.
@@ -35,16 +41,6 @@ We approached this problem by using blah blah blah, fit in R version blah blah, 
 We selected the following models for comparison so that we could address the questions above.  Note that all models include space, year effects, and depth (modeled as a quadradic), and that the spatial effects were constant across years.  This was necessary so that we could then ask whether inter-annual changes in temperature and dissolved oxygen led to differences in local density.  
 
 
-
-```{r loadfuns, echo =F}
-source("code/mi_functions.R")
-```
-
-```{r get_models}
-formulas <- get_models()
-formulas
-```
-
 ## Results
 #### Model Comparison
 ```{r model_compare}
@@ -61,27 +57,19 @@ for (i in 1:length(m_df)) {
   m <- readRDS(filename)
   AICmat[i,1] <-AIC(m)
 }
+dAIC <- AICmat - min(AICmat)
 
-dAIC[,1] <- AICmat[,1] - min(AICmat[,1])
-dAIC[,1] <-as.numeric(sprintf(dAIC,fmt = '%.2f'))
-dAIC
+dAICoutput <- data.frame(cbind(formulas, dAIC), stringsAsFactors= F)
+dAICoutput[,2] <- as.numeric(dAICoutput[,2])
+colnames(dAICoutput) <- c("model", paste0("\U0394", " AIC"))
+knitr::kable(x= dAICoutput, digits = 2, row.names= F)
 }
 ```
 
-```{r plotoxygen1, echo = F,  fig.cap = "Relationship between partial pressure and dissolved oxygen concentrations"}
-dat <- load_data()
-plot(dat$po2, dat$o2,
-type = "p",
-pch = 21,
-bg = "black",
-xlab = "Partial pressure of oxygen",
-ylab = "Dissolved oxygen mg / l"
-)
 
-```
+The best fitting models all contain oxygen-related predicts in a breakpoint model.  The best fitting model used $pO_2$, combined with a linear temperature effect. Dissolved oxygen with temperature also performed well ($\Delta \text{AIC}$ = `r dAIC[11]`), and was nearly indistinguishable from the partial pressure model.  This is not surprising given that the two are highly correlated.
 
-
-The best fitting models all contain oxygen-related predicts in a breakpoint model.  The best fitting model used $pO_2$, combined with a linear temperature effect. Dissolved oxygen with temperature also performed well ($\Delta \text{AIC}$ = `r dAIC[11]`), and was nearly indistinguishable from the partial pressure model.  This is not surprising given that the two are highly correlated (Figure \@ref(fig:plotoxygen1)).
+## Summary Descriptions
 
 ```{r plotoxygen2, echo = F, fig.cap = "Oxygen partial pressures by year and space. Only those pressures below the estimated breakpoint are shown (areas with greater oxygen pressures are coded dark blue)"}
 
@@ -89,6 +77,7 @@ The best fitting models all contain oxygen-related predicts in a breakpoint mode
 m_po2 <- readRDS("output/wc/model_13_MI.rds")
 m_o2 <- readRDS("output/wc/model_11_MI.rds")
 m_null <- readRDS("output/wc/model_2_MI.rds")
+m_mi <- readRDS("output/wc/model_14_MI.rds")
 
 dat <- load_data()
 # rescale variables
@@ -99,8 +88,8 @@ dat$temp = scale(dat$temp)
 
 mean.po2 <- mean(dat$po2)
 std.po2 <- sd(dat$po2)
-mean.do <- mean(dat$o2)
-std.do <- sd(dat$o2)
+mean.o2 <- mean(dat$o2)
+std.o2 <- sd(dat$o2)
 mean.mi <- mean(dat$mi)
 std.mi <- sd(dat$mi)
 dat$mi = scale(dat$mi)
@@ -112,10 +101,26 @@ predict_po2 <- predict(m_po2)
 predict_o2 <- predict(m_o2)
 predict_null <- predict(m_null)
 
-fixed_effects_po2 <- m_po2$model$par
-bp_ind <- grep("b_threshold", names(fixed_effects_po2))
-bp_po2 <- fixed_effects_po2[bp_ind[2]]
-slope_po2 <- fixed_effects_po2[bp_ind[1]]
+
+fitpars_po2 <- get_bp_parameters(m_po2)
+bp_po2 <- fitpars_po2[1]; slope_po2 <- fitpars_po2[2]
+bp_po2_true <- round(back.convert(bp_po2, mean.po2, std.po2),2)
+
+fitpars_o2 <- get_bp_parameters(m_o2)
+bp_o2 <- fitpars_o2[1]; slope_o2 <- fitpars_o2[2]
+bp_o2_true <- round(back.convert(bp_o2, mean.o2, std.o2),2)
+
+
+fitpars_mi <- get_bp_parameters(m_mi)
+bp_mi <- fitpars_mi[1]; slope_o2 <- fitpars_mi[2]
+bp_mi_true <- round(back.convert(bp_mi, mean.mi, std.mi),2)
+
+fixed_effects_o2 <- m_o2$model$par
+bp_ind <- grep("b_threshold", names(fixed_effects_o2))
+bp_o2 <- fixed_effects_o2[bp_ind[2]]
+slope_o2 <- fixed_effects_o2[bp_ind[1]]
+bp_o2_true <- round(back.convert(bp_o2, mean.o2, std.o2),2)
+
 
 # create new column in data that contains breakpoint if po2 is above breakpoint, and lists the actual po2 otherwise
 zeros <- rep(bp_po2, times = nrow(dat))
@@ -124,18 +129,66 @@ dat$po2_bp <- zeros
 dat$po2_bp[dat$po2<=bp_po2] = back.convert(dat$po2[dat$po2<=bp_po2], mean.po2, std.po2)
 
 # plot the po2 only below the threshold
-ggplot(dat, aes(longitude, latitude, col = po2_bp)) + scale_colour_gradient2() +
+ggplot(dat, aes(longitude, latitude, col = po2_bp)) + scale_colour_viridis_c() +
   geom_point(alpha=0.6, size = 0.5) + facet_wrap(~year) + labs(col = "p02 below breakpoint")
 ```
+
+
+Unexpectedly, oxygen levels were greatest in shallow and nearshore areas compared to deeper areas (Figure \@ref(fig:plotoxygen2)).  There were some notable differences accross years, especially in 2011 when there were incursions of low oxygen water in the southern region of the sampling area.
 
 ```{r plotoxygen3, echo = F, fig.cap ="Spatial distribution of Sablefish"}
 
 
-ggplot(dat, aes(longitude, latitude, col = log(cpue_kg_km2 ))) + scale_colour_gradient2() +
+ggplot(dat, aes(longitude, latitude, col = log(cpue_kg_km2 ))) +  scale_colour_viridis_c()  +
   geom_point(alpha=0.6, size = 0.5) + facet_wrap(~year)
 
 ```
 
+
+ There were no profound shifts in sablefish catch rates across the years, at least not based on simple maps (Figure \@ref(fig:plotoxygen3))
+
+
+
+
+``` {r plotoxygen6, echo = F, fig.cap = "Fitted spatio-temporal model predicting metabolic index"}
+mi_model <- readRDS("output/mi_model.rds")
+
+ggplot(predict(mi_model), aes(longitude, latitude, col = exp(est))) + scale_colour_gradientn(colours = plasma(10), limits = c(0, 5)) +
+  geom_point(alpha=0.6, size = 0.5) + facet_wrap(~year) + labs(col = "Fitted MI")
+
+```
+
+``` {r plotoxygen7, echo = F, fig.cap = "Fitted spatio-temporal model predicting dissolved oxygen"}
+o2_model <- readRDS("output/o2_model.rds")
+ggplot(predict(o2_model), aes(longitude, latitude, col = exp(est))) + scale_colour_gradientn(colours = plasma(10)) +
+  geom_point(alpha=0.6, size = 0.5) + facet_wrap(~year) + labs(col = "Fitted o2")
+
+```
+
+``` {r plotoxygen68, echo = F, fig.cap = "Fitted spatio-temporal model predicting pO2."}
+po2_model <- readRDS("output/po2_model.rds")
+
+ggplot(predict(po2_model), aes(longitude, latitude, col = exp(est))) + scale_colour_gradientn(colours = plasma(10)) +
+  geom_point(alpha=0.6, size = 0.5) + facet_wrap(~year) + labs(col = "Fitted po2")
+```
+
+
+The fitted dissolved oxygen models indicated spatio-temporal variablity  (Figure \@ref(fig:plotoxygen7)).  Generally, 2015 had relatively high dissolved oxygen, especially in shallower areas.  In 2011, dissolved oxygen was lower in central Califronial than many other years.  Otherwise, dissolved oxygen was low along the deepest areas surveyed. 
+
+The fitted metabolic index revealed generally high values throughout the sampling area, with spatially varying regions of low (<2) metabolic index across years (Figure \@ref(fig:plotoxygen6)).  There were few sites, however, with metabolic index values approaching 1 (the physiological threshold), likely because of the laboratory study upon which the metabolic index parameter was derived indicated that very low pO2 levels were needed to reach the critical threshold when demand exceeded supply.
+
+
+
+``` {r make_breakpoint_table}
+
+bp_output <- as.data.frame(cbind(c("dissolved oxygen", "pO2", "metabolic index"), c(bp_o2_true, bp_po2_true, bp_mi_true)))
+colnames(bp_output) <- c("Predictor", "Breakpoint")
+knitr::kable(x = bp_output, caption = "Estimated breakpoints for three different oxygen models", row.names = F)
+
+```
+
+
+The estimated breakpoints are indicated in the table below
 
 ```{r plotoxygen4, echo = F, fig.cap = "Difference in model predictions from breakpoint model with pO2 plus temperature, compared to a model with only temperature (null)"}
 
@@ -146,28 +199,22 @@ predict_o2$delta <- predict_o2$est - predict_null$est
 
 
 library(scales)
-ggplot(predict_po2, aes(longitude, latitude, col = delta)) + scale_colour_gradient2() +
+ggplot(predict_po2, aes(longitude, latitude, col = delta)) +  scale_colour_gradient2()  +
   geom_point(alpha=0.6, size = 0.5) + facet_wrap(~year) + labs(col = "Delta (po2 - null)")
 ```
 
+We examined how the model predictions were affected by the addition of a breakpoint model on oxygen (here, using pO<sub>2</sub>), compared to its analogous model that otherwise contained the same predictor variables but did not include oxygen.  Despite the fact oxygen is lowest in deeper waters, the largest difference in model predictions occured nearshore (Figure \@ref(fig:plotoxygen4)).  Generally, the null model overpredicted densities nearshore compared to the breakpoint pO<sub>2</sub> model.  We intepret this unexpected finding as evidence that the model was better able to model the effect of depth.  That is, by separating the effects of depth itself, from dissolved oxygen which covaries with depth, the model that included oxygen produced a better curve describing depth effects that were independent from dissolved oxygen.  
 
 ```{r plotoxygen5, echo = F, fig.cap = "Estimated oxygen effect size.  Value of 1.1 means no effect (above the threshold), values of expect size are multipliers times predicted density based on space, year, temperature and depth."}
 above <- rep(exp(bp_po2 * slope_po2), times = nrow(dat))
 dat$po2_effect <- above
 
-dat$po2_effect[dat$po2<=bp_po2] = exp((dat$po2[dat$po2<=bp_po2])* slope_po2)
-ggplot(dat, aes(longitude, latitude, col = po2_effect)) + scale_colour_gradient2() +
-  geom_point(alpha=0.6, scale = 0.5) + facet_wrap(~year)
+dat$po2_effect[dat$po2<=bp_po2] = exp((dat$po2[dat$po2<=bp_po2])* slope_po2 )
+dat$po2_effect <- dat$po2_effect / max(dat$po2_effect) # scaled to max = 1
+ggplot(dat, aes(longitude, latitude, col = po2_effect)) + scale_colour_viridis_c() +
+  geom_point(alpha=0.6, size = 0.5) + facet_wrap(~year)
 
 ```
 
-## Summary descriptions
 
-Unexpectedly, oxygen levels were greatest in shallow and nearshore areas compared to deeper areas (Figure \@ref(fig:plotoxygen2)).  There were some notable differences accross years, especially in 2011 when there were incursions of low oxygen water in the southern region of the sampling area. There were no profound shifts in sablefish catch rates across the years, at least not based on simple maps (Figure \@ref(fig:plotoxygen3))
-
-
-We examined how the model predictions were affected by the addition of a breakpoint model on oxygen (here, using pO<sub>2</sub>), compared to its analogous model that otherwise contained the same predictor variables but did not include oxygen.  Despite the fact oxygen is lowest in deeper waters, the largest difference in model predictions occured nearshore (Figure \@ref(fig:plotoxygen4)).  Generally, the null model overpredicted densities nearshore compared to the breakpoint pO<sub>2</sub> model.  We intepret this unexpected finding as evidence that the model was better able to model the effect of depth.  That is, by separating the effects of depth itself, from dissolved oxygen which covaries with depth, the model that included oxygen produced a better curve describing depth effects that were independent from dissolved oxygen.  
-
-The estimated effect of oxygen was relatively strong: namely the model predicts over a 50% reduction in density in areas with the lowest pO<sub>2</sub> (Figure \@ref(fig:plotoxygen5))
-
-
+The estimated effect of oxygen was relatively strong: namely the model predicts over a 50% reduction in density in areas with the lowest pO<sub>2</sub> 
