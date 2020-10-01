@@ -20,15 +20,15 @@ m_po2 <- readRDS("output/wc/model_13_MI.rds") # or use model 11 with o2 rather t
 #m_po2$formula <- cpue_kg_km2 ~ depth + I(depth^2) + as.factor(year) + temp + breakpt(po2) - 1
 
 # create new data with increments over the range of covariate values observed
-nd_temp <- data.frame(temp = seq(min(dat$temp), max(dat$temp), length.out = 100), 
+nd_temp <- data.frame(temp = seq(min(dat$temp), max(dat$temp), length.out = 200), 
                       depth = 0,
                       po2 = 0,
                       year = 2010L)
-nd_po2 <- data.frame(po2 = seq(min(dat$po2), max(dat$po2), length.out = 100), 
+nd_po2 <- data.frame(po2 = seq(min(dat$po2), max(dat$po2), length.out = 200), 
                      depth = 0,
                      temp = 0,
                      year = 2010L)
-nd_depth <- data.frame(depth = seq(min(dat$depth), max(dat$depth), length.out = 100), 
+nd_depth <- data.frame(depth = seq(min(dat$depth), max(dat$depth), length.out = 200), 
                       temp = 0,
                       po2 = 0,
                       year = 2010L)
@@ -44,6 +44,7 @@ plot_temp <- ggplot(p_temp, aes(back.convert(temp, attr(dat$temp, "scaled:center
                    ymin = exp(est - z * est_se), ymax = exp(est + z * est_se))) +
   geom_line() + geom_ribbon(alpha = 0.4) + 
   scale_y_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.1))) +
+  scale_x_continuous(breaks=seq(3,15,3)) +
   labs(x = "Temperature (°C)", y = NULL)
 plot_o2 <- ggplot(p_o2, aes(back.convert(po2, attr(dat$po2, "scaled:center"), attr(dat$po2, "scaled:scale")), exp(est), 
                  ymin = exp(est - z * est_se), ymax = exp(est + z * est_se))) +
