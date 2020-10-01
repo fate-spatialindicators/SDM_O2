@@ -20,15 +20,15 @@ m_po2 <- readRDS("output/wc/model_13_MI.rds") # or use model 11 with o2 rather t
 #m_po2$formula <- cpue_kg_km2 ~ depth + I(depth^2) + as.factor(year) + temp + breakpt(po2) - 1
 
 # create new data with increments over the range of covariate values observed
-nd_temp <- data.frame(temp = seq(min(dat$temp), max(dat$temp), length.out = 200), 
+nd_temp <- data.frame(temp = seq(min(dat$temp), max(dat$temp), length.out = 100), 
                       depth = 0,
                       po2 = 0,
                       year = 2010L)
-nd_po2 <- data.frame(po2 = seq(min(dat$po2), max(dat$po2), length.out = 200), 
+nd_po2 <- data.frame(po2 = seq(min(dat$po2), max(dat$po2), length.out = 300), 
                      depth = 0,
                      temp = 0,
                      year = 2010L)
-nd_depth <- data.frame(depth = seq(min(dat$depth), max(dat$depth), length.out = 200), 
+nd_depth <- data.frame(depth = seq(min(dat$depth), max(dat$depth), length.out = 100), 
                       temp = 0,
                       po2 = 0,
                       year = 2010L)
