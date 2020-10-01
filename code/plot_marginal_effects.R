@@ -17,7 +17,7 @@ dat$depth <- scale(log(dat$depth))
 # load best model
 m_po2 <- readRDS("output/wc/model_13_MI.rds") # or use model 11 with o2 rather than po2
 # update model with full formula, including breakpoint syntax
-m_po2$formula <- cpue_kg_km2 ~ depth + I(depth^2) + as.factor(year) + temp + breakpt(po2) - 1
+#m_po2$formula <- cpue_kg_km2 ~ depth + I(depth^2) + as.factor(year) + temp + breakpt(po2) - 1
 
 # create new data with increments over the range of covariate values observed
 nd_temp <- data.frame(temp = seq(min(dat$temp), max(dat$temp), length.out = 100), 
@@ -57,4 +57,4 @@ plot_depth <- ggplot(p_depth, aes(exp(back.convert(depth, attr(dat$depth, "scale
   labs(x = "Bottom Depth (m)", y = NULL)
 
 multipanel <- gridExtra::grid.arrange(plot_o2, plot_temp, plot_depth, nrow = 1, ncol = 3)
-ggsave("output/wc/marginal_effects.pdf", width = 9, height = 3, units = "in")
+ggsave("output/wc/marginal_effects.pdf", multipanel, width = 9, height = 3, units = "in")
