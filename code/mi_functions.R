@@ -122,4 +122,3 @@ get_bp_parameters <- function(m) {
   slope <- fixed_effects[bp_ind[1]]
   return(c(bp, slope))
 }
-  
