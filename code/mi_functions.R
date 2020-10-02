@@ -1,7 +1,7 @@
 load_data <- function() {
   dat = readRDS("survey_data/joined_nwfsc_data.rds")
   # analyze sablefish for years and hauls with adequate oxygen and temperature data, within range of occurrence
-  dat = filter(dat, species == "sablefish", year%in%seq(2010,2015), 
+  dat = dplyr::filter(dat, species == "sablefish", year%in%seq(2010,2015), 
                !is.na(temp), !is.na(o2), !is.na(sal),
                latitude_dd > min(latitude_dd[which(cpue_kg_km2>0)]),
                latitude_dd <= max(latitude_dd[which(cpue_kg_km2>0)]),
