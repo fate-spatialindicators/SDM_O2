@@ -8,26 +8,19 @@ library(sdmTMB)
 library(dplyr)
 library(sp)
 library(gsw)
-
+library(rgdal)
 
 # load and scale data -----------------------------------------------------
 
 dat <- load_data()
+dat$log_depth_scaled <- scale(log(dat$depth))
+dat$log_depth_scaled2 <- dat$log_depth_scaled^2
+dat$jday_scaled <- scale(dat$julian_day)
+dat$jday_scaled2 <- dat$jday_scaled^2
+dat$X <- dat$longitude
+dat$Y <- dat$latitude
 
 # rescale variables
-mean.depth <- mean(log(dat$depth))
-std.depth <- sd(log(dat$depth))
-mean.temp <- mean(dat$temp)
-std.temp <- sd(dat$temp)
-mean.po2 <- mean(dat$po2)
-std.po2 <- sd(dat$po2)
-mean.do <- mean(dat$o2)
-std.do <- sd(dat$o2)
-mean.mi <- mean(dat$mi)
-std.mi <- sd(dat$mi)
-
-dat$depth <- as.numeric(scale(log(dat$depth)))
-dat$temp <- as.numeric(scale(dat$temp))
 dat$mi <- as.numeric(scale(dat$mi))
 dat$o2 <- as.numeric(scale(dat$o2))
 dat$po2 <- as.numeric(scale(dat$po2))
@@ -37,7 +30,7 @@ dat$po2 <- as.numeric(scale(dat$po2))
 
 use_cv = FALSE # specify whether to do cross validation or not
 use_AIC = TRUE # specify whether to use AIC
-spde <- make_spde(x = dat$longitude, y = dat$latitude, n_knots = 250) # choose # knots
+spde <- make_mesh(data = dat, xy_cols = c("X", "Y"), n_knots = 250) # choose # knots
 
 m_df <- get_models();
 AICmat <- dAIC <- tweedie_dens <- matrix(NA, nrow = length(m_df), ncol = 1) # set up array for tweedie density

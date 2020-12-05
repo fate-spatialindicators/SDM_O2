@@ -1,6 +1,6 @@
 ---
 title: "Summary of Sablefish SDM Results"
-output: html_document
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
@@ -43,10 +43,24 @@ We selected the following models for comparison so that we could address the que
 
 ## Results
 #### Model Comparison
-```{r model_compare}
+```{r model_compare, echo = F}
 use_AIC <- TRUE
 
-m_df <- get_models();
+m_df <- formulas <- c("none",
+          "temperature",
+          "dissolved O2", 
+          'pO2', 
+          "MI", 
+          "temperature + dissolved O2",
+          "temperature + dissolved O2 + temperature x dissolved O2",
+          "temperature + pO2",
+          "temperature + pO2 + temperature x pO2",
+          "breakpoint(dissolved O2)",
+          "breakpoint(dissolved O2) + temperature",
+          "breakpoint(pO2)",
+          "breakpoint(pO2) + temperature",
+          "breakpoint(MI)")
+        
 AICmat <- dAIC <- tweedie_dens <- matrix(NA, nrow = length(m_df), ncol =1 ) # set up array for tweedie density
 rownames(AICmat) <- rownames(dAIC) <- rownames(tweedie_dens) <- m_df
 
@@ -61,8 +75,8 @@ dAIC <- AICmat - min(AICmat)
 
 dAICoutput <- data.frame(cbind(formulas, dAIC), stringsAsFactors= F)
 dAICoutput[,2] <- as.numeric(dAICoutput[,2])
-colnames(dAICoutput) <- c("model", paste0("\U0394", " AIC"))
-knitr::kable(x= dAICoutput, digits = 2, row.names= F)
+colnames(dAICoutput) <- c("Additional Predictors", '$\\Delta\\text{AIC}$')
+knitr::kable(dAICoutput, digits = 2, row.names = F, longtable = FALSE)
 }
 ```
 

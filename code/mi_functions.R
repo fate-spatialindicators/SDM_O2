@@ -8,6 +8,11 @@ load_data <- function() {
                longitude_dd > min(longitude_dd[which(cpue_kg_km2>0)]),
                longitude_dd < max(longitude_dd[which(cpue_kg_km2>0)]))
   
+  
+  # get julian day
+  dat$julian_day <- rep(NA, nrow(dat))
+  for (i in 1:nrow(dat)) dat$julian_day[i] <- as.POSIXlt(dat$date[i], format = "%Y-%b-%d")$yday
+
   # compute metabolic index (mi) --------------------------------------------
   # converted from Halle Berger matlab script
   
@@ -71,7 +76,7 @@ load_data <- function() {
   # prepare data and models -------------------------------------------------
   
   dat <- select(dat, species, year, longitude_dd, latitude_dd, cpue_kg_km2,
-                o2, temp, depth, mi, po2)
+                o2, temp, depth, mi, po2, julian_day)
   
   
   # UTM transformation
@@ -98,20 +103,20 @@ plot_map <- function(dat, column = "est") {
 }
 
 get_models <- function() {
-  formula <- c("depth + I(depth^2) + as.factor(year)", 
-                                      "depth + I(depth^2) + as.factor(year) + temp", 
-                                      "depth + I(depth^2) + as.factor(year) + o2",
-                                      "depth + I(depth^2) + as.factor(year) + po2",
-                                      "depth + I(depth^2) + as.factor(year) + mi",
-                                      "depth + I(depth^2) + as.factor(year) + temp + o2",
-                                      "depth + I(depth^2) + as.factor(year) + temp + o2 + temp*o2",
-                                      "depth + I(depth^2) + as.factor(year) + temp + po2",
-                                      "depth + I(depth^2) + as.factor(year) + temp + po2 + temp * po2",
-                                      "depth + I(depth^2) + as.factor(year) + breakpt(o2)",
-                                      "depth + I(depth^2) + as.factor(year) + breakpt(o2)+ temp",
-                                      "depth + I(depth^2) + as.factor(year) + breakpt(po2)",
-                                      "depth + I(depth^2) + as.factor(year) + breakpt(po2) + temp",
-                                      "depth + I(depth^2) + as.factor(year) + breakpt(mi)"
+  formula <- c("log_depth_scaled + log_depth_scaled2 + as.factor(year)", 
+                                      "log_depth_scaled + log_depth_scaled2 + as.factor(year) + temp", 
+                                      "log_depth_scaled + log_depth_scaled2 + as.factor(year) + o2",
+                                      "log_depth_scaled + log_depth_scaled2 + as.factor(year) + po2",
+                                      "log_depth_scaled + log_depth_scaled2 + as.factor(year) + mi",
+                                      "log_depth_scaled + log_depth_scaled2 + as.factor(year) + temp + o2",
+                                      "log_depth_scaled + log_depth_scaled2 + as.factor(year) + temp + o2 + temp*o2",
+                                      "log_depth_scaled + log_depth_scaled2 + as.factor(year) + temp + po2",
+                                      "log_depth_scaled + log_depth_scaled2 + as.factor(year) + temp + po2 + temp * po2",
+                                      "log_depth_scaled + log_depth_scaled2 + as.factor(year) + breakpt(o2)",
+                                      "log_depth_scaled + log_depth_scaled2 + as.factor(year) + breakpt(o2)+ temp",
+                                      "log_depth_scaled + log_depth_scaled2 + as.factor(year) + breakpt(po2)",
+                                      "log_depth_scaled + log_depth_scaled2 + as.factor(year) + breakpt(po2) + temp",
+                                      "log_depth_scaled + log_depth_scaled2 + as.factor(year) + breakpt(mi)"
                                       )
 }
                       
