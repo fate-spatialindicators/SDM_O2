@@ -127,3 +127,15 @@ get_bp_parameters <- function(m) {
   slope <- fixed_effects[bp_ind[1]]
   return(c(bp, slope))
 }
+
+get_partial_resisuals<- function(m, dat) {
+  # get model residuals
+  fitted <- predict(m)
+  residual <- fitted$cpue_kg_km2 - exp(fitted$est)
+  bp_pars <- get_bp_parameters(m)
+  # apply breakpoint function
+  for (i in 1:nrow(dat)) dat$bp[i] <- ifelse(dat$po2[i]<bp_pars[1], dat$po2[i]*bp_pars[2],bp_pars[1]*bp_pars[2])
+  partial_residuals <- residual * exp(dat$bp)
+  return(partual_residuals)
+}
+
