@@ -9,6 +9,7 @@ library(dplyr)
 library(sp)
 library(gsw)
 library(rgdal)
+library(future)
 
 # load and scale data -----------------------------------------------------
 
@@ -28,38 +29,35 @@ dat$po2 <- as.numeric(scale(dat$po2))
 
 # Run alternative models  -----------------------------------------------------
 
-use_cv = FALSE # specify whether to do cross validation or not
-use_AIC = TRUE # specify whether to use AIC
+use_cv = TRUE # specify whether to do cross validation or not
+use_AIC = FALSE # specify whether to use AIC
 spde <- make_mesh(data = dat, xy_cols = c("X", "Y"), n_knots = 250) # choose # knots
 
 m_df <- get_models();
 AICmat <- dAIC <- tweedie_dens <- matrix(NA, nrow = length(m_df), ncol = 1) # set up array for tweedie density
 rownames(AICmat) <- rownames(dAIC) <- rownames(tweedie_dens) <- m_df
-
+plan(multisession)
 
 # fit models with typical approach
-for(i in 1:length(m_df)){
+for(i in 10:length(m_df)){
   print(paste0("model # ", i, " of ", length(m_df)))
   
-  formula = paste0("cpue_kg_km2 ~ 0 +", m_df[i])
+  formula = paste0("cpue_kg_km2 ~ -1 +", m_df[i])
   
   # fit model with or without cross-validation
   if(use_cv==TRUE) {
-    m <- try(sdmTMB_cv(
+    m <- sdmTMB_cv(
       formula = as.formula(formula),
       data = dat,
       time = NULL,
       spde = spde,
-      k_folds = 10,
+      k_folds = 5,
       family = tweedie(link = "log"),
       anisotropy = TRUE,
-      spatial_only = TRUE
-    ), silent = TRUE)
-    
-    if(class(m)!="try-error") {
-      saveRDS(m, file = paste0("output/wc/model_",i,"_MI_cv.rds"))
-      tweedie_dens[i] = m$sum_loglik
-    }
+      spatial_only = TRUE,
+      silent = TRUE)
+      saveRDS(m, file = paste0("output/wc/cv/model_",i,"_MI_cv.rds"))
+      tweedie_dens[i] = sum(m$fold_loglik)
     
   } else {
     m <- try(sdmTMB(
@@ -87,9 +85,11 @@ for (i in 1:length(m_df)) {
   m <- readRDS(filename)
   AICmat[i,1] <-AIC(m)
 }
+}
 
 
 
+  
 dAIC[,1] <- AICmat[,1] - min(AICmat[,1])
 dAIC[,1] <-as.numeric(sprintf(dAIC,fmt = '%.2f'))
 dAIC

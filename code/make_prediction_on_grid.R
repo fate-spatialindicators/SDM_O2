@@ -6,6 +6,7 @@ library(dplyr)
 library(sp)
 library(gsw)
 library(ggplot2)
+library(viridis)
 
 # load models
 formulas <- get_models()
@@ -31,7 +32,9 @@ dat$po2 <- as.numeric(scale(dat$po2))
 dat$temp <- as.numeric(scale(dat$temp))
 
 c_spde <-make_mesh(data = dat, xy_cols = c("X", "Y"), n_knots = 250) # choose # knots
+run_models <- F
 
+if (run_models) {
 
 # Make grid of environmental conditions - fit scaled coefficients
 temp_model <-
@@ -110,19 +113,20 @@ df$mi <- pred_mi$est
 
 # Now predict sablefish catch rates
 # Fit sablefish catch model (best performing model)
-formula <- paste0("cpue_kg_km2 ~ -1 +", formulas[13])
-sablefish_model <-sdmTMB(formula = as.formula(formula),
-                         data = dat,
-                         time = NULL,
-                         reml = TRUE,
-                         spde = c_spde,
-                         family = tweedie(link = "log"),
-                         anisotropy = TRUE,
-                         spatial_only =TRUE,
-                         silent = TRUE)
+
+sablefish_model_po2 <-readRDS("output/wc/model_13_MI.rds")
+
+sablefish_pred_po2 <- predict(sablefish_model_po2, newdata =df, return_tmb_object = F)
+}
 
 
-sablefish_predict <- predict(sablefish_model, newdata =df, return_tmb_object = F)
+if (!run_models) {
+  pred_temp <- readRDS("output/wc/temp.rds")
+  pred_mi <- readRDS("output/wc/mi.rds")
+  pred_po2 <- readRDS("output/wc/po2.rds")
+  sablefish_pred_po2 <- readRDS("output/wc/catch_rate.rds")
+}
+
 
 # Plot output
 # A short function for plotting our predictions:
@@ -133,38 +137,95 @@ plot_map <- function(dat, column = "est") {
     coord_fixed()
 }
 
-
-plot_map(pred_po2, "unscaled_est") +
-scale_fill_viridis_c(option = "plasma") +
-  ggtitle("Predicted po2") +
-  labs("pO2")
+plotfilename <- "output/wc_fits.pdf"
+pdf(file = plotfilename, height = 7, width = 7)
 
 plot_map(pred_temp, "unscaled_est") +
-  scale_fill_viridis_c(option = "plasma") +
+  scale_fill_viridis_c(option = "viridis") +
   ggtitle("Predicted Temp") +
   labs("T")
 
+plot_map(pred_po2, "unscaled_est") +
+  scale_fill_viridis_c(option = "viridis") +
+  ggtitle("Predicted po2") +
+  labs("pO2")
 
 plot_map(pred_mi, "unscaled_est") +
-  scale_fill_viridis_c(option = "plasma") +
+  scale_fill_viridis_c(option = "viridis") +
   ggtitle("Predicted MI") +
   labs("MI")
 
 
-plot_map(sablefish_predict, "exp(est)") +
+plot_map(sablefish_pred_po2, "exp(est)") +
   scale_fill_viridis_c(option = "viridis") +
   ggtitle("Predicted catch rate") +
  labs("Catch Rate (kg / km2)")
 
+
+
+
+# Save fitted grid models to save time
+if (run_models) {
+saveRDS(pred_temp, file = "output/wc/temp.rds")
+saveRDS(pred_po2, file = "output/wc/po2.rds")
+saveRDS(pred_mi, file = "output/wc/mi.rds")
+saveRDS(sablefish_pred_po2, file = "output/wc/catch_rate.rds")
+}
+
+
+## Fit other models and compare predictions spatially
+
+wc_grid$loc = seq(1,nrow(wc_grid))
+
+# truncate limits based on haul filters for OR above
+df = expand.grid(loc=unique(wc_grid$loc),
+                 year = unique(dat$year))
+df = left_join(df,wc_grid)
+df$jday_scaled = 0
+df$jday_scaled2 = 0
+df$log_depth_scaled = matrix(df$log_depth_scaled, ncol=1)
+df$log_depth_scaled2 = matrix(df$log_depth_scaled2, ncol=1)
+df$jday_scaled = matrix(df$jday_scaled, ncol=1)
+df$jday_scaled2 = matrix(df$jday_scaled2, ncol=1)
+df$temp <- pred_temp$est
+df$po2 <- pred_po2$est
+df$mi <- pred_mi$est
+
+formula <- paste0("cpue_kg_km2 ~ -1 +", formulas[14])
+sablefish_model_mi <-sdmTMB(formula = as.formula(formula),
+                         data = dat,
+                         time = NULL,
+                         reml = TRUE,
+                         spde = c_spde,
+                         family = tweedie(link = "log"),
+                         anisotropy = TRUE,
+                         spatial_only =TRUE,
+                         silent = TRUE)
+sablefish_pred_mi <- predict(sablefish_model_mi, newdata =df, return_tmb_object = F)
+
+po2_vs_mi <- sablefish_pred_mi
+po2_vs_mi$delta_yhat <- exp(sablefish_pred_mi$est) - exp(sablefish_pred_po2$est)
+plot_map(po2_vs_mi, "delta_yhat") +
+  scale_fill_viridis_c(option = "viridis") +
+  ggtitle("Difference in predicted catch rate (mi - po2 model)") +
+  labs("Catch Rate (kg / km2)")
+
 # make another prediction assuming all po2 is above breakpoint
-bp_pars <- get_bp_parameters(sablefish_model)
+# need to load the model
+sablefish_model_po2 <- readRDS("output/wc/model_13_MI.rds")
+
+bp_pars <- get_bp_parameters(sablefish_model_po2)
 df2 <- df
 
-df2$po2 <- rep(bp_pars[1], nrow(df2))
-sablefish_predict_highpo2 <- predict(sablefish_model, newdata =df2, return_tmb_object = F)
+df2$po2 <- rep(bp_pars[1], times = nrow(df2))
 
-delta_predict <- sablefish_predict
-delta_predict$est <- sablefish_predict$est - sablefish_predict_highpo2$est
+sablefish_pred_highpo2 <- predict(sablefish_model_po2, newdata =df2, return_tmb_object = F)
+
+delta_predict <- sablefish_pred_po2
+delta_predict$est <- sablefish_pred_po2$est - sablefish_pred_highpo2$est
 plot_map(delta_predict, "exp(est)") +
   scale_fill_viridis_c(option = "viridis") +
   ggtitle("Predicted po2 effect")
+
+dev.off()
+system2("open", args = c("-a Skim.app", plotfilename))
