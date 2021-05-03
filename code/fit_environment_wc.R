@@ -18,12 +18,12 @@ library(viridis)
 
 wc_grid <- readRDS("survey_data/wc_grid.rds")
 
-dat <- load_data()
+dat <- load_data_jscope("sablefish")
 # transform
 dat$log_depth_scaled <- scale(log(dat$depth))
-dat$log_depth_scaled2 <- dat$log_depth_scaled^2
+dat$log_depth_scaled2 <- scale(log(dat$depth) ^ 2)
 dat$jday_scaled <- scale(dat$julian_day)
-dat$jday_scaled2 <- dat$jday_scaled^2
+dat$jday_scaled2 <- scale(log(dat$julian_day) ^ 2)
 dat$X <- dat$longitude
 dat$Y <- dat$latitude
 dat$temp <- scale(dat$temp)

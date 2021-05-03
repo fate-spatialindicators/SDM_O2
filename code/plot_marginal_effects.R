@@ -7,9 +7,54 @@ library(gsw)
 # load handy functions
 source("code/mi_functions.R")
 
+species.2.plot <- c("dover sole", "sablefish", "petrale sole", "canary rockfish", "widow rockfish")
+
+######
+#### Get the data all set up as needed:
+
+dat = readRDS("survey_data/joined_nwfsc_data.rds")
+target_species <-
+  c(
+    "dover sole",
+    "sablefish",
+    "lingcod",
+    "petrale sole",
+    "longspine thornyhead",
+    "pacific hake"
+  )
+constraining_species <-
+  c("canary rockfish",
+    "widow rockfish",
+    "darkblotched rockfish",
+    "cowcod")
+tmpdat = dplyr::filter(
+  dat,
+  species %in% c(target_species, constraining_species),
+  year %in% seq(2010, 2015),!is.na(temp),
+  !is.na(o2),
+  !is.na(sal),
+  !is.infinite(sal),
+  latitude_dd > min(latitude_dd[which(cpue_kg_km2 >
+                                        0)]),
+  latitude_dd <= max(latitude_dd[which(cpue_kg_km2 >
+                                         0)]),
+  longitude_dd > min(longitude_dd[which(cpue_kg_km2 >
+                                          0)]),
+  longitude_dd < max(longitude_dd[which(cpue_kg_km2 >
+                                          0)])
+)
+
+minlat <- min(tmpdat$latitude_dd)
+maxlat <- max(tmpdat$latitude_dd)
+minlon <- min(tmpdat$longitude_dd)
+maxlon <- max(tmpdat$longitude_dd)
+
+
+######
+                    
 dat <- load_data()
 
-# scale variables
+# scale variables - used later to unscale!
 dat$temp <- scale(dat$temp)
 dat$po2 <- scale(dat$po2)
 dat$depth <- scale(log(dat$depth))
@@ -40,11 +85,8 @@ p_depth <- predict(m_po2, newdata = nd_depth, se_fit = TRUE, re_form = NA, xy_co
 
 # plot predictions with uncertainty
 z <- 1.645 # for 90% CI
-plot_temp <- ggplot(p_temp, aes(back.convert(temp, attr(dat$temp, "scaled:center"), attr(dat$temp, "scaled:scale")), exp(est), 
-                   ymin = exp(est - z * est_se), ymax = exp(est + z * est_se))) +
-  geom_line() + geom_ribbon(alpha = 0.4) + 
-  scale_y_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.1))) +
-  scale_x_continuous(breaks=seq(3,15,3)) +
+plot_temp <- ggplot() +
+  geom_line(data = p_temp, aes(x = back.convert(temp, attr(dat$temp, "scaled:center"), attr(dat$temp, "scaled:scale")), y = exp(est)), color = "red") +
   labs(x = "Temperature (°C)", y = NULL)
 plot_o2 <- ggplot(p_o2, aes(back.convert(po2, attr(dat$po2, "scaled:center"), attr(dat$po2, "scaled:scale")), exp(est), 
                  ymin = exp(est - z * est_se), ymax = exp(est + z * est_se))) +

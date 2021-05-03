@@ -108,8 +108,11 @@ o2haul$jday = date::mdy.date(o2haul$month, o2haul$day, o2haul$year) -
 o2haul$jday_scaled = scale(o2haul$jday)
 o2haul$jday_scaled2 = o2haul$jday_scaled ^ 2
 
+
+
+
 # fit first model to raw geospatial data
-c_spde <- make_spde(o2haul$X, o2haul$Y, n_knots = n_knots)
+c_spde <- make_mesh(o2haul, xy_cols = c("X", "Y"),  n_knots = n_knots)
 o2_model <- sdmTMB(formula = o2_at_gear_ml_per_l_der ~ -1 + log_depth_scaled +
     log_depth_scaled2 + as.factor(year) + jday_scaled + jday_scaled2,
       data = o2haul,

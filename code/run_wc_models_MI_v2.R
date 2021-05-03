@@ -1,5 +1,5 @@
 # Install latest version of sdmTMB ----------------------------------------
-devtools::install_github("pbs-assess/sdmTMB")
+#devtools::install_github("pbs-assess/sdmTMB")
 
 # Initialize with packages and functions ------------------------------------------------
 rm(list = ls())
@@ -29,8 +29,8 @@ dat$po2 <- as.numeric(scale(dat$po2))
 
 # Run alternative models  -----------------------------------------------------
 
-use_cv = TRUE # specify whether to do cross validation or not
-use_AIC = FALSE # specify whether to use AIC
+use_cv = FALSE # specify whether to do cross validation or not
+use_AIC = TRUE # specify whether to use AIC
 spde <- make_mesh(data = dat, xy_cols = c("X", "Y"), n_knots = 250) # choose # knots
 
 m_df <- get_models();
@@ -39,7 +39,7 @@ rownames(AICmat) <- rownames(dAIC) <- rownames(tweedie_dens) <- m_df
 plan(multisession)
 
 # fit models with typical approach
-for(i in 10:length(m_df)){
+for(i in 1:length(m_df)){
   print(paste0("model # ", i, " of ", length(m_df)))
   
   formula = paste0("cpue_kg_km2 ~ -1 +", m_df[i])
@@ -93,4 +93,4 @@ for (i in 1:length(m_df)) {
 dAIC[,1] <- AICmat[,1] - min(AICmat[,1])
 dAIC[,1] <-as.numeric(sprintf(dAIC,fmt = '%.2f'))
 dAIC
-}
+

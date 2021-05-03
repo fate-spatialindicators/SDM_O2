@@ -1,4 +1,4 @@
-devtools::install_github("pbs-assess/sdmTMB")
+#devtools::install_github("pbs-assess/sdmTMB")
 library(sdmTMB)
 library(dplyr)
 library(sp)
