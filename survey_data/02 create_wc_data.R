@@ -23,20 +23,37 @@ catch$common_name = tolower(catch$common_name)
 
 haul = readRDS("survey_data/wcbts_haul_2019-08-01.rds")
 
+# Prepare the haul data for location-time matching to ROMS and catch data ----
 #haul = dplyr::select(haul, date_yyyymmdd,depth_hi_prec_m,latitude_dd,longitude_dd,temperature_at_gear_c_der)
 #write.table(haul, "data_for_mike.csv",sep=",",row.names=FALSE)
-haul$year = as.numeric(substr(haul$date_yyyymmdd,1,4))
-haul$month = as.numeric(substr(haul$date_yyyymmdd,5,6))
-haul$day = as.numeric(substr(haul$date_yyyymmdd,7,8))
 
 haul = dplyr::rename(haul, 
   o2 = o2_at_gear_ml_per_l_der,
-  degc = temperature_at_gear_c_der,
+  temp = temperature_at_gear_c_der,
   sal = salinity_at_gear_psu_der,
-  depthm=depth_hi_prec_m) %>% 
-  dplyr::select(o2,degc,sal,depthm,latitude_dd,longitude_dd,
-    performance,trawl_id)
+  depth = depth_hi_prec_m)
 
+#haul$year = as.numeric(substr(haul$date_yyyymmdd,1,4))
+#haul$month = as.numeric(substr(haul$date_yyyymmdd,5,6))
+#haul$day = as.numeric(substr(haul$date_yyyymmdd,7,8))
+
+haul_jscope <- haul %>%
+  filter(latitude_dd >= 43) %>% # filter to J-SCOPE spatial domain
+  select(trawl_id, 
+         date = date_yyyymmdd, 
+         pass, 
+         depth, 
+         latitude_dd, 
+         longitude_dd,
+         o2, 
+         sal,
+         temp) %>%
+  arrange(trawl_id) %>%
+  mutate(tow_id = row_number())
+write.table(haul_jscope, "survey_data/haul_data_for_jscope.csv", sep=",", row.names=FALSE)
+
+# join with catch data
+haul <- dplyr::select(haul, o2,temp,sal,depth,latitude_dd,longitude_dd,trawl_id)
 dat = dplyr::left_join(catch, haul)
 
 # WC names in cope and haltuch 2012
@@ -69,7 +86,8 @@ fram = c(cope_haltuch, "vermilion and sunset rockfish",
   "greenspotted rockfish",
   "honeycomb rockfish",
   "California scorpionfish",
-  "blackgill rockfish")
+  "blackgill rockfish",
+  "pacific halibut")
 # filter by 'well sampled wc species'
 #dat = dplyr::filter(dat, common_name %in% cope_haltuch)
 
@@ -92,9 +110,7 @@ spp_to_keep = c("urchin|star|anemone|cucumber|sea pen|salps|sponge|snail|shab|sl
 spp_to_keep = keep[-grep(spp_to_keep,keep)]
 dat = dplyr::filter(dat, common_name %in% spp_to_keep)
 
-dat = dplyr::rename(dat, 
-  temp=degc,depth=depthm,species=common_name) %>% 
-  select(-depth_m)
+dat = dplyr::rename(dat, species=common_name)
 dat$survey = "nwfsc.combo"
 
 saveRDS(dat, "survey_data/joined_nwfsc_data.rds")
