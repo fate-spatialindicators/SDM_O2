@@ -51,7 +51,7 @@ haul = haul %>% filter(!is.na(Cent.Lon), performance == "Satisfactory")
 haul_trans = haul
 coordinates(haul_trans) <- c("Cent.Lon", "Cent.Lat")
 proj4string(haul_trans) <- CRS("+proj=longlat +datum=WGS84")
-newproj = paste("+proj=utm +zone=10 ellps=WGS84")
+newproj = paste("+proj=utm +zone=10 ellps=WGS84 +units=km")
 haul_trans <- spTransform(haul_trans, CRS(newproj))
 haul_trans = as.data.frame(haul_trans)
 haul_trans$Cent.Lon = haul_trans$Cent.Lon/10000
@@ -91,8 +91,8 @@ colnames(wc_grid) = c("X", "Y", "depth")
 # scale covariates
 wc_grid$log_depth_scaled <- (log(wc_grid$depth * -1) - mean(log(haul$depth_hi_prec_m))) / sd(log(haul$depth_hi_prec_m))
 wc_grid$log_depth_scaled2 <- wc_grid$log_depth_scaled ^ 2
-wc_grid$X <- wc_grid$X/10000
-wc_grid$Y <- wc_grid$Y/10000
+wc_grid$X <- wc_grid$X
+wc_grid$Y <- wc_grid$Y
 
 saveRDS(wc_grid, file=paste0("data/wc_grid.rds")) # save prediction grid
 

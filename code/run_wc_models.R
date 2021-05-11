@@ -21,7 +21,7 @@ library(future)
 
 # Set Run Specifications --------------------------------------------------
 spc <- "sablefish"
-fit.model <- T # do you want to fit SDM to environmental variables and impute missing values?
+fit.model <- F # do you want to fit SDM to environmental variables and impute missing values?
 years <- 2010:2015 # designate years to use, must be 2010:2015 if using trawl-based data
 constrain_latitude <- F # do you want to constraint trawl data N of 43 degrees latitude
 compare_sources <- F # do you want to run models comparing trawl and J-SCOPE covariates?
