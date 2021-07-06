@@ -68,17 +68,19 @@ if (!use_jscope) {
     dat$po2_jscope <- as.numeric(scale(dat$po2_jscope))
     dat$log_depth_scaled <- scale(log(dat$depth))
     dat$log_depth_scaled2 <- with(dat, log_depth_scaled ^ 2)
+    dat$log_depth_scaled3 <- with(dat, log_depth_scaled^3)
     dat$jday_scaled <- scale(dat$julian_day)
     dat$jday_scaled2 <- with(dat, jday_scaled ^ 2)
     dat$X <- dat$longitude
     dat$Y <- dat$latitude
   }
   if (!compare_sources) {
-    dat$temp <- as.numeric(scale(dat$temp))
-    dat$mi <- as.numeric(scale(dat$mi))
-    dat$po2 <- as.numeric(scale(dat$po2))
+    dat$temp <- (scale(dat$temp))
+    dat$mi <- (scale(dat$mi))
+    dat$po2 <- (scale(dat$po2))
     dat$log_depth_scaled <- scale(log(dat$depth))
     dat$log_depth_scaled2 <- with(dat, log_depth_scaled ^ 2)
+    dat$log_depth_scaled3 <- with(dat, log_depth_scaled^3)
     dat$jday_scaled <- scale(dat$julian_day)
     dat$jday_scaled2 <- with(dat, jday_scaled ^ 2)
     dat$X <- dat$longitude
@@ -93,6 +95,7 @@ if (use_jscope) {
   dat$po2 <- as.numeric(scale(dat$po2))
   dat$log_depth_scaled <- scale(log(dat$depth))
   dat$log_depth_scaled2 <- with(dat, log_depth_scaled ^ 2)
+  dat$log_depth_scaled3 <- with(dat, log_depth_scaled^3)
   dat$jday_scaled <- scale(dat$julian_day)
   dat$jday_scaled2 <- with(dat, jday_scaled ^ 2)
   dat$X <- dat$longitude
@@ -117,7 +120,7 @@ AICmat <-
   dAIC <-
   matrix(NA, nrow = length(m_df), ncol = 1) # set up array for output
 rownames(AICmat) <- rownames(dAIC) <- m_df
-plan(multisession)
+
 
 # fit models and save files to output/wc folder
 for (i in 1:length(m_df)) {
@@ -163,8 +166,9 @@ for (i in 1:length(m_df)) {
     if (class(m) != "try-error") {
       if (no_depth)
         saveRDS(m, file = paste0("output/wc/model_", i, "_", spc, "_nodepth.rds"))
-      if (!no_depth)
+      if (!no_depth&!use_jscope)
         saveRDS(m, file = paste0("output/wc/model_", i, "_", spc, ".rds"))
+      if(!no_depth&use_jscope) saveRDS(m, file = paste0("output/wc/model_", i, "_", spc, "_jscope.rds"))
     }
   }
 }
@@ -174,8 +178,10 @@ if (use_AIC) {
   for (i in 1:length(m_df)) {
     if (no_depth)
       filename <- paste0("output/wc/model_", i, "_", spc, "_nodepth.rds")
-    if (!no_depth)
+    if (!no_depth&!use_jscope)
       filename <- paste0("output/wc/model_", i, "_", spc, ".rds")
+    if(!no_depth&use_jscope)
+      filename <- paste0("output/wc/model_", i, "_", spc, "_jscope.rds")
     m <- readRDS(filename)
     AICmat[i, 1] <- AIC(m)
   }
@@ -192,8 +198,11 @@ dAIC
 best.index <- which(dAIC==0)
 if (no_depth)
   filename <- paste0("output/wc/model_", best.index, "_", spc, "_nodepth.rds")
-if (!no_depth)
+if (!no_depth&!use_jscope)
   filename <- paste0("output/wc/model_", best.index, "_", spc, ".rds")
+if(!no_depth&use_jscope) 
+  filename <- paste0("output/wc/model_", best.index, "_", spc, "_jscope.rds")
+  
 m <- readRDS(filename)
 summary(m)
 

@@ -1,24 +1,34 @@
 ---
-title: "Summary of Sablefish SDM Results"
-output: pdf_document
+title: "Spatio-temporal modeling of oxygen on fish distributions: Results from trawl-based measurements"
+output: bookdown::pdf_document2
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r setup, echo = F, message=FALSE,warning=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning  = FALSE)
 ```
 
-```{r more_setup, echo = FALSE}
+```{r more_setup, echo = FALSE, message= FALSE, warning= FALSE}
 source("code/mi_functions.R")
 formulas <- get_models()
 library(sdmTMB)
+library(raster)
 library(dplyr)
 library(sp)
 library(gsw)
-library(ggplot2)
+library(rgdal)
+library(future)
+require(rnaturalearth)
+require(rnaturalearthdata) 
+require(rnaturalearthhires)
+require(ggplot2)
 library(viridis)
+library(sf)
+library(gridExtra)
+library(egg)
+library(lme4)
 
 ```
-## Background
+# Introduction blah blah
 
 Species distribution modeling attempts to predict local abundance from environmental attributes. One key challenge is that a number of these environmental variables co-vary, and have strong spatial structure.  Contemporary spatial models allow us to ask whether the addition of an environmental covariate leads to better predictions than modeling spatial structure alone.  However, the choice of environmental variables, and the functional form linking environment to species local density needs to be informed by physiological and ecological mechanisms.
 
@@ -34,201 +44,565 @@ Here we fit distribution models to bottom trawl survey of Sablefish, to ask:
 3. Do statistical models fit to estimated metabolic index perform better than those fit to just dissolved oxygen or partial pressure (i.e. does the dependence of temperature on oxygen needs matter when predicting species distributions, especially given the covariance in temperature, oxygen)
 
 
+# Methods
+
+## estimating metabolic index parameters for sablefish
+
+## trawl survey data
+
+## spatio-temporal modeling
+
 ## Alternative Models
 
-We approached this problem by using blah blah blah, fit in R version blah blah, using a very fancy algorithm.
 
-We selected the following models for comparison so that we could address the questions above.  Note that all models include space, year effects, and depth (modeled as a quadradic), and that the spatial effects were constant across years.  This was necessary so that we could then ask whether inter-annual changes in temperature and dissolved oxygen led to differences in local density.  
+All models include space, year effects, and depth (modeled as a quadratic function), and that the spatial effects were constant across years.  This was necessary so that we could then ask whether inter-annual changes in temperature and dissolved oxygen led to differences in local density.  We then added addional fixed effects predictors in various combinations to consider effects of temperature, $pO_2$ with and without a breakpoint function, and the metabolic index.  A total of 9 different models were compared (Table \@ref(tab:modelcompare)).  We used AIC to judge the degree of support for each model.
+
+```{r loaddata, echo = F}
+spc <- "sablefish"
+fit.model <- F # do you want to fit SDM to environmental variables and impute missing values?
+years <- 2010:2015 # designate years to use, must be 2010:2015 if using trawl-based data
+constrain_latitude <- F # do you want to constraint trawl data N of 43 degrees latitude
+compare_sources <- F # do you want to run models comparing trawl and J-SCOPE covariates?
+no_depth <- FALSE # Do you want to run models w/out a depth effect?
+use_cv = FALSE # specify whether to do cross validation or not
+use_AIC = TRUE # specify whether to use AIC
+use_jscope <- F # specify whether to only use J-SCOPE based estimates.  Overrides compare_sources and fit.model
+fit_new <- F
+years.2.plot <- years
+
+# get list of models.  if use_scope is T, then always use "get_models()".
+
+  m_df <- get_models()
+AICmat <-
+  dAIC <-
+  matrix(NA, nrow = length(m_df), ncol = 1) # set up array for output
+rownames(AICmat) <- rownames(dAIC) <- m_df
 
 
-## Results
-#### Model Comparison
-```{r model_compare, echo = F}
-use_AIC <- TRUE
+  dat <- load_data(fit.model, spc, constrain_latitude)
+    dat$temp <- (scale(dat$temp))
+    dat$mi <- (scale(dat$mi))
+    dat$po2 <- (scale(dat$po2))
+    dat$log_depth_scaled <- scale(log(dat$depth))
+    dat$log_depth_scaled2 <- with(dat, log_depth_scaled ^ 2)
+    dat$jday_scaled <- scale(dat$julian_day)
+    dat$jday_scaled2 <- with(dat, jday_scaled ^ 2)
+    dat$X <- dat$longitude
+    dat$Y <- dat$latitude
+  
 
-m_df <- formulas <- c("none",
-          "temperature",
-          "dissolved O2", 
-          'pO2', 
-          "MI", 
-          "temperature + dissolved O2",
-          "temperature + dissolved O2 + temperature x dissolved O2",
-          "temperature + pO2",
-          "temperature + pO2 + temperature x pO2",
-          "breakpoint(dissolved O2)",
-          "breakpoint(dissolved O2) + temperature",
-          "breakpoint(pO2)",
-          "breakpoint(pO2) + temperature",
-          "breakpoint(MI)")
-        
-AICmat <- dAIC <- tweedie_dens <- matrix(NA, nrow = length(m_df), ncol =1 ) # set up array for tweedie density
-rownames(AICmat) <- rownames(dAIC) <- rownames(tweedie_dens) <- m_df
 
-# Use this if using AIC
-if (use_AIC) {
-for (i in 1:length(m_df)) {
-  filename <- paste0("output/wc/model_",i,"_MI.rds")
-  m <- readRDS(filename)
-  AICmat[i,1] <-AIC(m)
+# make year a factor
+dat$year <- as.factor(dat$year)
+
+#### Prepare plot
+df <- readRDS("output/wc_grid_df.rds")
+po2_model <- readRDS("output/wc/po2_model.rds")
+df$year <- as.factor(df$year)
+df$log_depth_scaled <- as(df$log_depth_scaled, Class = "matrix")
+df$log_depth_scaled2 <- as(df$log_depth_scaled2, Class = "matrix")
+df$jday_scaled <- as(df$jday_scaled, Class = "matrix")
+df$jday_scaled2 <- as(df$jday_scaled2, Class = "matrix")
+```
+# Results
+
+## Estimating metabolic index parameters
+
+```{r miplot, echo = F, fig.cap = "Fitted relationship between body-size adjusted critical $pO_2$ and temperature", fig.height = 4}
+
+library(rMR)
+kb <-  8.617333262145E-5
+all.dat<- read.csv("data/metabolic_index_data.csv", header = T)
+all.dat$po2 <- NA
+# cycle by species and measurement type, and get po2 for each
+spc.list <- unique(all.dat$spc)
+
+for (i in 1:length(spc.list)) {
+  spc.index <- which(all.dat$spc == spc.list[i])
+  tmp.dat <- dplyr::filter(all.dat, spc == spc.list[i])
+  tmp.dat$po2 <- DO.unit.convert(tmp.dat$lc50,
+                                 DO.units.in = tmp.dat$units[1],
+                                 DO.units.out = "PP",
+                                 bar.press = 1,
+                                 bar.units.in= "atm",
+                                 temp.C = tmp.dat$temp,
+                                 bar.units.out = "atm",
+                                 salinity = tmp.dat$salinity[1],
+                                 salinity.units = "uS")
+  all.dat$po2[spc.index] <- tmp.dat$po2
 }
-dAIC <- AICmat - min(AICmat)
 
-dAICoutput <- data.frame(cbind(formulas, dAIC), stringsAsFactors= F)
-dAICoutput[,2] <- as.numeric(dAICoutput[,2])
-colnames(dAICoutput) <- c("Additional Predictors", '$\\Delta\\text{AIC}$')
-knitr::kable(dAICoutput, digits = 2, row.names = F, longtable = FALSE)
+all.dat$spc <- as.factor(all.dat$spc)
+# fit global model 
+
+all.dat$inv.temp <- (1 / kb)  * (1 / (all.dat$temp+273.15))
+all.dat$spc <- as.factor(all.dat$spc)
+fit <- lmer(log(po2) ~inv.temp + log(b) + (1|spc), data = all.dat)
+
+
+Eo <- - fixef(fit)[2]
+n <- - fixef(fit)[3]
+
+spc.effects <- coef(fit)
+
+species.names <- c("Atlantic cod", "Common eelpout", "Atlantic silverside", "N. swellfish", "Sablefish", "Sharpsnout sea bream", "Winter flounder")
+all.dat$bnpo2 <- all.dat$b^n * all.dat$po2
+
+ggplot(data = all.dat, aes(x = inv.temp, y=log(bnpo2), col = spc)) + 
+  geom_point(size = 3) +
+  scale_color_viridis_d(option = "plasma", begin = 0, end = 0.95, name = "",labels = species.names) +
+  labs(x = bquote("Inverse Temperature"~(k[b]~T)^-1), y = bquote('log'~(B^n~pO[2]))) +
+theme_bw() +
+  theme(
+    plot.background = element_blank()
+    ,panel.grid.major = element_blank()
+    ,panel.grid.minor = element_blank()
+    ,panel.border = element_blank()
+  ) +
+  theme(axis.line = element_line(color = "black")) +
+  theme(axis.text = element_text(size = 12)) +
+  theme(axis.title= element_text(size = 14)) +
+  theme(legend.text= element_text(size = 12)) +
+  theme(legend.position = c(0.85, 0.82))
+
+```
+
+Sablefish exhibit exceptionally high tolerance for low dissolved oxygen compared to the other marine fish species included in the analysis (Figure \@ref(fig:miplot)). Moreover, the relationship between body-mass adjusted critical $pO_2$ and temperature (expressed as the inverse of $k_b T$ appeared to be similar among those species for which data were available at multiple temperatures, once data were corrected for body size.  Thus, the estimated value for $E_o$ = 0.4525 was deemed suitable to use for sablefish.  The body size scaling of the metabolic index, $n$ was estimated to be -0.30 i.e., metabolic demands scales more strongly with body size than does metabolic supply.  
+
+## Summary of Environmental Conditions
+
+```{r plotoxygen, echo = F, fig.cap = "Spatio-temporal variation in bottom oxygen levels (atm)", fig.height=8}
+
+pred_po2 <- readRDS("output/wc/pred_po2.rds")
+
+# sean's code
+map_data <- rnaturalearth::ne_countries(scale = "large", returnclass = "sf")
+
+# crop if you want; not needed:
+us_coast <- st_crop(map_data,
+                    c(xmin = -126, ymin = 31, xmax = -110, ymax = 50))
+us_coast_proj <- sf::st_transform(us_coast, crs = 32610)
+
+if(!use_jscope) {
+  xlimits = c(282853, 1025581)
+  ylimits = c(3549000, 5366000)
 }
-```
+if(use_jscope) {
+  xlimits = c(283853, 459201)
+  ylimits = c(4762418, 5366000)
+}
 
 
-The best fitting models all contain oxygen-related predicts in a breakpoint model.  The best fitting model used $pO_2$, combined with a linear temperature effect. Dissolved oxygen with temperature also performed well ($\Delta \text{AIC}$ = `r dAIC[11]`), and was nearly indistinguishable from the partial pressure model.  This is not surprising given that the two are highly correlated.
+ggplot(us_coast_proj) + geom_sf() +
+  geom_raster(data = pred_po2, aes(x = X * 1000, y = Y * 1000, fill = po2)) +
+  facet_wrap(~year, ncol = 3) +
+  scale_x_continuous(breaks = c(-125, -120), limits = xlimits) +
+  ylim(ylimits[1], ylimits[2]) +
+  scale_fill_viridis_c(limits = c(0.0, 0.1), oob = scales::squish, name = bquote(pO[2])) +
+  labs(x = "Longitude", y = "Latitude") +
+  theme_bw() +
+  theme(
+    plot.background = element_blank()
+    ,panel.grid.major = element_blank()
+    ,panel.grid.minor = element_blank()
+    ,panel.border = element_blank()
+  ) +
+  theme(axis.line = element_line(color = "black")) +
+  theme(axis.text = element_text(size = 12)) +
+  theme(axis.title= element_text(size = 14))
 
-## Summary Descriptions
-
-```{r plotoxygen2, echo = F, fig.cap = "Oxygen partial pressures by year and space. Only those pressures below the estimated breakpoint are shown (areas with greater oxygen pressures are coded dark blue)"}
-
-# first load models
-m_po2 <- readRDS("output/wc/model_13_MI.rds")
-m_o2 <- readRDS("output/wc/model_11_MI.rds")
-m_null <- readRDS("output/wc/model_2_MI.rds")
-m_mi <- readRDS("output/wc/model_14_MI.rds")
-
-dat <- load_data()
-# rescale variables
-dat$depth = scale(log(dat$depth))
-dat$temp = scale(dat$temp)
-dat$depth = scale(log(dat$depth))
-dat$temp = scale(dat$temp)
-
-mean.po2 <- mean(dat$po2)
-std.po2 <- sd(dat$po2)
-mean.o2 <- mean(dat$o2)
-std.o2 <- sd(dat$o2)
-mean.mi <- mean(dat$mi)
-std.mi <- sd(dat$mi)
-dat$mi = scale(dat$mi)
-dat$o2 = scale(dat$o2)
-dat$po2 <- scale(dat$po2)
-
-
-predict_po2 <- predict(m_po2)
-predict_o2 <- predict(m_o2)
-predict_null <- predict(m_null)
-
-
-fitpars_po2 <- get_bp_parameters(m_po2)
-bp_po2 <- fitpars_po2[1]; slope_po2 <- fitpars_po2[2]
-bp_po2_true <- round(back.convert(bp_po2, mean.po2, std.po2),2)
-
-fitpars_o2 <- get_bp_parameters(m_o2)
-bp_o2 <- fitpars_o2[1]; slope_o2 <- fitpars_o2[2]
-bp_o2_true <- round(back.convert(bp_o2, mean.o2, std.o2),2)
-
-
-fitpars_mi <- get_bp_parameters(m_mi)
-bp_mi <- fitpars_mi[1]; slope_o2 <- fitpars_mi[2]
-bp_mi_true <- round(back.convert(bp_mi, mean.mi, std.mi),2)
-
-fixed_effects_o2 <- m_o2$model$par
-bp_ind <- grep("b_threshold", names(fixed_effects_o2))
-bp_o2 <- fixed_effects_o2[bp_ind[2]]
-slope_o2 <- fixed_effects_o2[bp_ind[1]]
-bp_o2_true <- round(back.convert(bp_o2, mean.o2, std.o2),2)
-
-
-# create new column in data that contains breakpoint if po2 is above breakpoint, and lists the actual po2 otherwise
-zeros <- rep(bp_po2, times = nrow(dat))
-dat$po2_bp <- zeros
-
-dat$po2_bp[dat$po2<=bp_po2] = back.convert(dat$po2[dat$po2<=bp_po2], mean.po2, std.po2)
-
-# plot the po2 only below the threshold
-ggplot(dat, aes(longitude, latitude, col = po2_bp)) + scale_colour_viridis_c() +
-  geom_point(alpha=0.6, size = 0.5) + facet_wrap(~year) + labs(col = "p02 below breakpoint")
-```
-
-
-Unexpectedly, oxygen levels were greatest in shallow and nearshore areas compared to deeper areas (Figure \@ref(fig:plotoxygen2)).  There were some notable differences accross years, especially in 2011 when there were incursions of low oxygen water in the southern region of the sampling area.
-
-```{r plotoxygen3, echo = F, fig.cap ="Spatial distribution of Sablefish"}
-
-
-ggplot(dat, aes(longitude, latitude, col = log(cpue_kg_km2 ))) +  scale_colour_viridis_c()  +
-  geom_point(alpha=0.6, size = 0.5) + facet_wrap(~year)
 
 ```
 
+Unexpectedly, oxygen levels were greatest in shallow (< 150 m) and nearshore areas compared to deeper areas (Figure \@ref(fig:plotoxygen)). This offshore gradients was strongest in southern California, south of San Francisco Bay. This spatial pattern of bottom oxygen was relatively similar across years, with some annual events. Most notably, oxygen levels, particularly in shallow nearshore areas, were highest in 2015 compared to other years. 
 
- There were no profound shifts in sablefish catch rates across the years, at least not based on simple maps (Figure \@ref(fig:plotoxygen3))
+```{r plottemp, echo = F, fig.cap = "Spatio-temporal variation in bottom temperature", fig.height=8}
 
+pred_temp <- readRDS("output/wc/pred_temp.rds")
 
+# sean's code
+map_data <- rnaturalearth::ne_countries(scale = "large", returnclass = "sf")
 
-
-``` {r plotoxygen6, echo = F, fig.cap = "Fitted spatio-temporal model predicting metabolic index"}
-mi_model <- readRDS("output/mi_model.rds")
-
-ggplot(predict(mi_model), aes(longitude, latitude, col = exp(est))) + scale_colour_gradientn(colours = plasma(10), limits = c(0, 5)) +
-  geom_point(alpha=0.6, size = 0.5) + facet_wrap(~year) + labs(col = "Fitted MI")
-
-```
-
-``` {r plotoxygen7, echo = F, fig.cap = "Fitted spatio-temporal model predicting dissolved oxygen"}
-o2_model <- readRDS("output/o2_model.rds")
-ggplot(predict(o2_model), aes(longitude, latitude, col = exp(est))) + scale_colour_gradientn(colours = plasma(10)) +
-  geom_point(alpha=0.6, size = 0.5) + facet_wrap(~year) + labs(col = "Fitted o2")
-
-```
-
-``` {r plotoxygen68, echo = F, fig.cap = "Fitted spatio-temporal model predicting pO2."}
-po2_model <- readRDS("output/po2_model.rds")
-
-ggplot(predict(po2_model), aes(longitude, latitude, col = exp(est))) + scale_colour_gradientn(colours = plasma(10)) +
-  geom_point(alpha=0.6, size = 0.5) + facet_wrap(~year) + labs(col = "Fitted po2")
-```
-
-
-The fitted dissolved oxygen models indicated spatio-temporal variablity  (Figure \@ref(fig:plotoxygen7)).  Generally, 2015 had relatively high dissolved oxygen, especially in shallower areas.  In 2011, dissolved oxygen was lower in central Califronial than many other years.  Otherwise, dissolved oxygen was low along the deepest areas surveyed. 
-
-The fitted metabolic index revealed generally high values throughout the sampling area, with spatially varying regions of low (<2) metabolic index across years (Figure \@ref(fig:plotoxygen6)).  There were few sites, however, with metabolic index values approaching 1 (the physiological threshold), likely because of the laboratory study upon which the metabolic index parameter was derived indicated that very low pO2 levels were needed to reach the critical threshold when demand exceeded supply.
+# crop if you want; not needed:
+us_coast <- st_crop(map_data,
+                    c(xmin = -126, ymin = 31, xmax = -110, ymax = 50))
+us_coast_proj <- sf::st_transform(us_coast, crs = 32610)
 
 
 
-``` {r make_breakpoint_table}
+# * 1000 b/c we are in UTM km for model fitting:
+if(!use_jscope) {
+  xlimits = c(282853, 1025581)
+  ylimits = c(3549000, 5366000)
+}
+if(use_jscope) {
+  xlimits = c(283853, 459201)
+  ylimits = c(4762418, 5366000)
+}
 
-bp_output <- as.data.frame(cbind(c("dissolved oxygen", "pO2", "metabolic index"), c(bp_o2_true, bp_po2_true, bp_mi_true)))
-colnames(bp_output) <- c("Predictor", "Breakpoint")
-knitr::kable(x = bp_output, caption = "Estimated breakpoints for three different oxygen models", row.names = F)
-
-```
-
-
-The estimated breakpoints are indicated in the table below
-
-```{r plotoxygen4, echo = F, fig.cap = "Difference in model predictions from breakpoint model with pO2 plus temperature, compared to a model with only temperature (null)"}
-
-# look at difference in predictions between oxygen models and null
-
-predict_po2$delta <- predict_po2$est - predict_null$est
-predict_o2$delta <- predict_o2$est - predict_null$est
-
-
-library(scales)
-ggplot(predict_po2, aes(longitude, latitude, col = delta)) +  scale_colour_gradient2()  +
-  geom_point(alpha=0.6, size = 0.5) + facet_wrap(~year) + labs(col = "Delta (po2 - null)")
-```
-
-We examined how the model predictions were affected by the addition of a breakpoint model on oxygen (here, using pO<sub>2</sub>), compared to its analogous model that otherwise contained the same predictor variables but did not include oxygen.  Despite the fact oxygen is lowest in deeper waters, the largest difference in model predictions occured nearshore (Figure \@ref(fig:plotoxygen4)).  Generally, the null model overpredicted densities nearshore compared to the breakpoint pO<sub>2</sub> model.  We intepret this unexpected finding as evidence that the model was better able to model the effect of depth.  That is, by separating the effects of depth itself, from dissolved oxygen which covaries with depth, the model that included oxygen produced a better curve describing depth effects that were independent from dissolved oxygen.  
-
-```{r plotoxygen5, echo = F, fig.cap = "Estimated oxygen effect size.  Value of 1.1 means no effect (above the threshold), values of expect size are multipliers times predicted density based on space, year, temperature and depth."}
-above <- rep(exp(bp_po2 * slope_po2), times = nrow(dat))
-dat$po2_effect <- above
-
-dat$po2_effect[dat$po2<=bp_po2] = exp((dat$po2[dat$po2<=bp_po2])* slope_po2 )
-dat$po2_effect <- dat$po2_effect / max(dat$po2_effect) # scaled to max = 1
-ggplot(dat, aes(longitude, latitude, col = po2_effect)) + scale_colour_viridis_c() +
-  geom_point(alpha=0.6, size = 0.5) + facet_wrap(~year)
-
+ggplot(us_coast_proj) + geom_sf() +
+  geom_raster(data = pred_temp, aes(x = X * 1000, y = Y * 1000, fill = temp)) +
+  facet_wrap(~year, ncol = 3) +
+  scale_x_continuous(breaks = c(-125, -120), limits = xlimits) +
+  ylim(ylimits[1], ylimits[2]) +
+  scale_fill_viridis_c(limits = c(3, 11), oob = scales::squish, name = "Temperature (C)") +
+  labs(x = "Longitude", y = "Latitude") +
+  theme_bw() +
+  theme(
+    plot.background = element_blank()
+    ,panel.grid.major = element_blank()
+    ,panel.grid.minor = element_blank()
+    ,panel.border = element_blank()
+  ) +
+  theme(axis.line = element_line(color = "black")) +
+  theme(axis.text = element_text(size = 12)) +
+  theme(axis.title= element_text(size = 14))
 ```
 
 
-The estimated effect of oxygen was relatively strong: namely the model predicts over a 50% reduction in density in areas with the lowest pO<sub>2</sub> 
+```{r plotmi, echo = F, fig.cap = "Spatio-temporal variation in the metabolic index", fig.height=8}
+
+pred_mi <- readRDS("output/wc/pred_mi.rds")
+
+# sean's code
+map_data <- rnaturalearth::ne_countries(scale = "large", returnclass = "sf")
+
+# crop if you want; not needed:
+us_coast <- st_crop(map_data,
+                    c(xmin = -126, ymin = 31, xmax = -110, ymax = 50))
+us_coast_proj <- sf::st_transform(us_coast, crs = 32610)
+
+
+
+# * 1000 b/c we are in UTM km for model fitting:
+if(!use_jscope) {
+  xlimits = c(282853, 1025581)
+  ylimits = c(3549000, 5366000)
+}
+if(use_jscope) {
+  xlimits = c(283853, 459201)
+  ylimits = c(4762418, 5366000)
+}
+
+ggplot(us_coast_proj) + geom_sf() +
+  geom_raster(data = pred_mi, aes(x = X * 1000, y = Y * 1000, fill = mi)) +
+  facet_wrap(~year, ncol = 3) +
+  scale_x_continuous(breaks = c(-125, -120), limits = xlimits) +
+  ylim(ylimits[1], ylimits[2]) +
+  scale_fill_viridis_c(limits = c(0, 4), oob = scales::squish, name = "Metabolic Index") +
+  labs(x = "Longitude", y = "Latitude") +
+  theme_bw() +
+  theme(
+    plot.background = element_blank()
+    ,panel.grid.major = element_blank()
+    ,panel.grid.minor = element_blank()
+    ,panel.border = element_blank()
+  ) +
+  theme(axis.line = element_line(color = "black")) +
+  theme(axis.text = element_text(size = 12)) +
+  theme(axis.title= element_text(size = 14))
+```
+
+Bottom temperatures were greatest in the middle of the spatial domain (Figure \@ref(fig:plottemp)). North of this region, upwelling likely contributed to cooler bottom temperatures, even in shallower (<200 m) habitats).  The 2014 -  2015 anomalous temperature event was evident throughout the coast in shallower habitats.
+
+The metabolic index was generally higher in the northern extent of the survey range, lowest in the deeper and southernmost regions, and exhibited moderate inter-annual variability (Figure \@ref(fig:plotmi)).  Despite the warm temperatures in 2015, the metabolic index was generally high in this year, particularly in the northern half of the survey domain.  Overall, the metabolic index was, on average, lowest in 2011 and 2013, but the effect size was not particularly large.  The spatial patterning of metabolic index was relatively similar across years, and most areas exceeded the estimated physiological limit of 1, although avoidance is expected at values of the index that exceed 1. 
+
+## Summary of Sablefish Distributions
+
+```{r sablefish, echo = F, fig.cap ="Spatial distribution of Sablefish.  Each point is a trawl survey location, the color indicates catch rate.  Gray circles indicate absence of sablefish in the sample", fig.height=8}
+map_data <- rnaturalearth::ne_countries(scale = "large", returnclass = "sf")
+
+# crop if you want; not needed:
+us_coast <- st_crop(map_data,
+                    c(xmin = -126, ymin = 31, xmax = -110, ymax = 50))
+us_coast_proj <- sf::st_transform(us_coast, crs = 32610)
+
+
+
+# * 1000 b/c we are in UTM km for model fitting:
+if(!use_jscope) {
+  xlimits = c(282853, 1025581)
+  ylimits = c(3549000, 5366000)
+}
+if(use_jscope) {
+  xlimits = c(283853, 459201)
+  ylimits = c(4762418, 5366000)
+}
+
+
+ggplot(us_coast_proj) + geom_sf() + 
+  geom_point(data = dat, aes(x = X * 1000, y = Y * 1000, col = log(cpue_kg_km2)), alpha = 0.6, size = 0.5) +
+                facet_wrap(~year, ncol = 3) +
+  scale_x_continuous(breaks = c(-125, -120), limits = xlimits) +
+  ylim(ylimits[1], ylimits[2]) + 
+  scale_colour_viridis(limits = c(0, 8),oob = scales::squish,name = bquote('log Catch Rate'~(kg~km^-2))) +
+   labs(x = "Longitude", y = "Latitude") +
+  theme_bw() +
+  theme(
+    plot.background = element_blank()
+    ,panel.grid.major = element_blank()
+    ,panel.grid.minor = element_blank()
+    ,panel.border = element_blank()
+  ) +
+  theme(axis.line = element_line(color = "black")) +
+  theme(axis.text = element_text(size = 12)) +
+  theme(axis.title= element_text(size = 14))
+
+
+```
+
+
+Sablefish were captured throughout the survey domain \@ref(fig:sablefish)), Graphical representation of the trawl survey catch data did not reveal profound shifts in sablefish catch rates across the years (Figure \@ref(fig:sablefish)).
+
+## Model Comparison, using full survey geographic range and trawl-based oxygen measurements
+
+```{r modelcompare, echo = F}
+
+
+m_df <- get_models()
+AICmat <- matrix(NA, nrow = 9, ncol = 1)
+
+  for (i in 1:length(m_df)) {
+      filename <- paste0("output/wc/model_", i, "_", spc, ".rds")
+    m <- readRDS(filename)
+    AICmat[i, 1] <- AIC(m)
+  }
+
+# calculate and print out delta AIC table
+addn.predictors <- rep(NA, length(m_df))
+addn.predictors[1] <- "none"
+for (i in 2:length(m_df)) {
+  addn.predictors[i] <- gsub(
+      pattern = "log_depth_scaled + log_depth_scaled2  + as.factor(year) +",
+      x = m_df[i],
+      replacement = "",
+      fixed = T
+    )
+}
+dAIC <- data.frame("Additional Predictors" = addn.predictors,
+                   "DeltaAIC" =  AICmat[, 1] - min(AICmat[, 1]))
+
+colnames <- c("Additional Predictors", 'Delta AIC')
+
+knitr::kable(dAIC, col.names = colnames, caption = "Model selection using AIC", booktabs = T)
+
+```
+
+
+The best fitting models all contained oxygen-related predictor and a breakpoint model.The best fitting model used $pO_2$, combined with a linear temperature effect (Table \@ref(tab:modelcompare)). The metabolic index model, however, had much less support than the $pO_2$ models (with or without temperature as an additional predictor). Note that the metabolic index becomes a linear function of $pO_2$ when $E_O$ approaches zero, so weakening the temperature dependence of the metabolic index would improve the fit of the metabolic index model, but not lead it to fit better than the breakpoint $pO_2$ model. 
+
+Model diagnostics indicated no spatial pattern in residuals (Figure \@ref(fig:plotresidual)).  To simply representation, we calculated the vector **R** of residuals, and standardized by the standard deviation of the residuals.  Extreme catch events (exceptionally high catches) were observed throughout the survey area, though were notable less rare in the southern-most portion of the survey domain. 
+
+```{r plotresidual, echo = F, fig.cap = "Standardized residuals of best fitting model"}
+
+
+best_model <- readRDS("output/wc/model_8_sablefish.rds")
+fit_sablefish <- predict(best_model,
+                                 newdata = dat,
+                                 return_tmb_object = F)
+fit_sablefish$residuals <- dat$cpue_kg_km2 - exp(fit_sablefish$est)
+fit_sablefish$residuals <- fit_sablefish$residuals / sd(fit_sablefish$residuals)
+
+
+ggplot(us_coast_proj) + geom_sf() + 
+  geom_point(data = fit_sablefish, aes(x = X * 1000, y = Y * 1000, col = residuals), alpha = 0.6, size = 0.5) +
+  facet_wrap(~year, ncol = 3) +
+  scale_x_continuous(breaks = c(-125, -120), limits = xlimits) +
+  ylim(ylimits[1], ylimits[2]) + 
+  scale_colour_viridis(limits = c(-0.75, 0.75),oob = scales::squish,name = "Standardized Residuals") +
+  labs(x = "Longitude", y = "Latitude") +
+  theme_bw() +
+  theme(
+    plot.background = element_blank()
+    ,panel.grid.major = element_blank()
+    ,panel.grid.minor = element_blank()
+    ,panel.border = element_blank()
+  ) +
+  theme(axis.line = element_line(color = "black")) +
+  theme(axis.text = element_text(size = 12)) +
+  theme(axis.title= element_text(size = 14))
+
+
+
+```
+
+## Effect Sizes
+
+```{r ploteffectsize, echo = F, fig.cap = "Marginal effects of oxygen, temperature and bottom depth", fig.height=3.5, fig.width = 6}
+# load best model
+m_po2 <- readRDS("output/wc/model_8_sablefish.rds") #
+nd_temp <- data.frame(temp = seq(min(dat$temp), max(dat$temp), length.out = 100),
+                      log_depth_scaled = 0,
+                      log_depth_scaled2 = 0,
+                      po2 = 0,
+                      year = 2010L)
+nd_temp <- convert_class(nd_temp)
+
+
+nd_po2 <- data.frame(po2 = seq(min(dat$po2), max(dat$po2), length.out = 300), 
+                     temp = 0,
+                     log_depth_scaled = 0,
+                     log_depth_scaled2 = 0,
+                     year = 2010L)
+nd_po2 <- convert_class(nd_po2)
+
+nd_depth <- data.frame(log_depth_scaled = seq(min(dat$log_depth_scaled), max(dat$log_depth_scaled), length.out = 100), 
+                      temp = 0,
+                      po2 = 0,
+                      year = 2010L)
+nd_depth$log_depth_scaled2 <- nd_depth$log_depth_scaled ^2
+
+
+nd_depth <- convert_class(nd_depth)
+
+# predict to new data
+p_temp <- predict(m_po2, newdata = nd_temp, se_fit = TRUE, re_form = NA)
+p_o2 <- predict(m_po2, newdata = nd_po2, se_fit = TRUE, re_form = NA)
+p_depth <- predict(m_po2, newdata = nd_depth, se_fit = TRUE, re_form = NA)
+
+# plot predictions with uncertainty
+z <- 1.645 # for 90% CI
+plot_temp <- ggplot(p_temp, aes(back.convert(temp, attr(dat$temp, "scaled:center"), attr(dat$temp, "scaled:scale")), exp(est), 
+                                   ymin = exp(est - z * est_se), ymax = exp(est + z * est_se))) +
+                      geom_line() + geom_ribbon(alpha = 0.4) + 
+  labs(x = "Temperature (°C)", y = NULL) +
+  lims(y = c(0, 1500)) +
+  theme_bw() +
+  theme(
+    plot.background = element_blank()
+    ,panel.grid.major = element_blank()
+    ,panel.grid.minor = element_blank()
+    ,panel.border = element_blank()
+  ) +
+  theme(axis.line = element_line(color = "black")) +
+  theme(axis.text = element_text(size = 12)) +
+  theme(axis.title= element_text(size = 14)) 
+
+plot_o2 <- ggplot(p_o2, aes(back.convert(po2, attr(dat$po2, "scaled:center"), attr(dat$po2, "scaled:scale")), exp(est), 
+                 ymin = exp(est - z * est_se), ymax = exp(est + z * est_se))) +
+  geom_line() + geom_ribbon(alpha = 0.4) + 
+  scale_y_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.1))) +
+  labs(x = bquote(pO[2]), y = bquote('Population Density'~(kg~km^-2))) + 
+  lims(y = c(0, 1500)) +
+  theme_bw() +
+  theme(
+    plot.background = element_blank()
+    ,panel.grid.major = element_blank()
+    ,panel.grid.minor = element_blank()
+    ,panel.border = element_blank()
+  ) +
+  theme(axis.line = element_line(color = "black")) +
+  theme(axis.text = element_text(size = 12)) +
+  theme(axis.title= element_text(size = 14)) 
+
+plot_depth <- ggplot(p_depth, aes(exp(back.convert(log_depth_scaled, attr(dat$log_depth_scaled, "scaled:center"), attr(dat$log_depth_scaled, "scaled:scale"))), exp(est), 
+                    ymin = exp(est - z * est_se), ymax = exp(est + z * est_se))) +
+  geom_line() + geom_ribbon(alpha = 0.4) + 
+  scale_y_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.1))) +
+  labs(x = "Bottom Depth (m)", y = NULL) +
+  lims(y = c(0, 1500)) +
+theme_bw() +
+  theme(
+    plot.background = element_blank()
+    ,panel.grid.major = element_blank()
+    ,panel.grid.minor = element_blank()
+    ,panel.border = element_blank()
+  ) +
+  theme(axis.line = element_line(color = "black")) +
+  theme(axis.text = element_text(size = 12)) +
+  theme(axis.title= element_text(size = 14)) 
+
+ 
+multipanel <- gridExtra::grid.arrange(plot_o2, plot_temp, plot_depth, nrow = 1, ncol = 3)
+
+```
+
+
+
+The best fitting model indicated strong effects of $pO_2$,  temperature, and depth, even when accounting for latent spatial effects (Figure \@ref(fig:ploteffectsize)). Generally, predicted mean sablefish catch rates declined by over one half at the lowest observed $pO_2$ compared to values above the estimated threshold of ca. 0.05 atm.  Temperature was strongly and negatively related to temperature as well. Sablefish densities peaked at relatively deep (500 - 700 m) depths, and were predicted to be near 0 at depths shallower than 100m. 
+
+Finally, we mapped the effect of oxygen on sablefish by comparing predicted catches from the best-fitting model applied to fitted grid of $pO_2$, to predicted catches when all $pO_2$ were set above the estimated threshold (Figure \@ref(fig:plotspatialeffect)).  By far, the largest effects of oxygen were reflected in southern California, where catch rates were predicted have been reduced by.  Moreover, the model predicts that at least some of the decline in catch rate at deep (>750 m) is attributable to the reduced $pO_2$ that is common in these areas.  
+
+
+```{r plotspatialeffect, echo = F, fig.cap = "Predicted contribution of oxygen on spatial distribution of sablefish", fig.height = 7}
+
+delta_predict <- readRDS("output/wc/delta_predict.rds")
+
+ggplot(us_coast_proj) + geom_sf() +
+  geom_raster(data = delta_predict, aes(x = X * 1000, y = Y * 1000, fill = delta)) +
+  facet_wrap(~year, ncol = 3) +
+  scale_x_continuous(breaks = c(-125, -120), limits = xlimits) +
+  ylim(ylimits[1], ylimits[2]) +
+  scale_fill_viridis_c(limits = c(-1.5, 0), oob = scales::squish, name = "log Effect Size") +
+  labs(x = "Longitude", y = "Latitude") +
+  theme_bw() +
+  theme(
+    plot.background = element_blank()
+    ,panel.grid.major = element_blank()
+    ,panel.grid.minor = element_blank()
+    ,panel.border = element_blank()
+  ) +
+  theme(axis.line = element_line(color = "black")) +
+  theme(axis.text = element_text(size = 12)) +
+  theme(axis.title= element_text(size = 14))
+  
+```
+
+
+```{r plotmivscatch, echo = F, fig.cap = "Sablefish catch rate as a function of temperature and body mass-scaled oxygen partial pressure.  Each point is a trawl survey sample, and color denotes catch rate.  Dark grau points indicate hauls where sablefish were absent. The solid black point indicates the estimated critical threshold (where metabolic index equals 1)"}
+plotdat <- load_data(fit.model, spc, constrain_latitude)
+
+kelvin = 273.15
+kb <- 0.000086173324
+Eo <- 0.4525966 
+Ao <- 5.780791e-06
+n <- -0.303949 
+B = 1000 # size in grams, roughly average
+logAo <- log(Ao)
+
+t.range <- 2:12
+k.range <- t.range + 273.15
+
+plot.phi <- data.frame(inv_temp =1/(k.range * kb), 
+                       logbnpo2 = -logAo - Eo/(kb * k.range))
+plotdat$inv_temp <- 1 / (kb * (plotdat$temp+kelvin))
+plotdat$logbnpo2 <- log(B^n * plotdat$po2)  
+
+# only look at depths that are commonly inhabited by sablefish
+plotdat <- dplyr::filter(plotdat, depth >=200)
+
+ggplot() +
+  geom_point(data = plotdat, aes(x = inv_temp, y = logbnpo2, col = log(cpue_kg_km2)), size = 0.5) +
+  scale_x_continuous() +
+  scale_colour_viridis(limits = c(0, 8),oob = scales::squish,name = bquote('log Catch Rate'~(kg~km^-2))) +
+  labs(x = bquote("Inverse Temperature"~(k[b]~T)^-1), y = bquote('log'~(B^n~pO[2]))) +
+  geom_line(data = plot.phi, aes(x = inv_temp, y = logbnpo2), size = 1.5) +
+  theme_bw() +
+  theme(
+    plot.background = element_blank()
+    ,panel.grid.major = element_blank()
+    ,panel.grid.minor = element_blank()
+    ,panel.border = element_blank()
+  ) +
+  theme(axis.line = element_line(color = "black")) +
+  theme(axis.text = element_text(size = 12)) +
+  theme(axis.title= element_text(size = 14)) 
+  
+
+
+```
+
+Finally, we examined the relationship between survey catch rate and components of the metabolic index.  For each survey sample taken at depths greater than 200 m, we calculated the temperature term in the Arrrhenius equation, and the remaining terms in the metabolic index. The critical oxygen threshold in eq X is defined by a line whose intercept and slope are set by the terms $E_0$ and $A_0$. Notably, there were many catch events at oxygen and temperature levels below the critical threshold line, indicating that the experimental work may now accurately predict species sensitivity to oxygen *in situ*.  This does not necessarily affect the predictive ability of the fitted statistical model, which is simply relating variation in the catch rate to the input values of the metabolic index.  There appears to be a combination of temperature and $pO_2$ below which sablefish are more commonly absent from the trawl tows.  However, there was no apparent gradation in positive catch rates within the state space, which is likely why the metabolic index did not perform as well as the breakpoint model with separate $pO_2$ and temperature terms. 
+
+# Discussion points
+
++ Despite having a strong basis in physiological theory, the metabolic index did not provide strong explanatory power of local abundance, even when represented as a threshold, breakpoint function.
+    + the metabolic index may perform better to define range boundaries i.e, the relationship between catch rate and metabolic index is extremely steep so that metabolic index does not improve prediction of sablefish catch rates in marginal oxygen conditions.
+    + The fitted parameters of the model suggested high tolerance of sablefish to low oxygen, yet there were many catch events captured at temperature and oxygen levels at which the metabolic index would predict are lethal.  This suggests either imprecision in the parameter estimation, or that short-duration laboratory experiments do not predict oxygen sensitivity in situ.  Similar conclusions were reached by Moriarty et al. to possible explain unexpected sensitivity of pelagic fish to reduced oxygen levels.
+    + note that we assumed a constant body size, but more specific information on average body size per tow might improve the performance of metabolic index
+
+* Breakpoint models provide a simple way of statistically modeling limiting factors to species distributions.
+    + The estimated $pO_2$ threshold was generally consistent with the single laboratory experiment conducted on sablefish oxygen tolerance. To be consistent, the estimated breakpoint should exceed the lethal threshold and be near oxygen levels where non-lethal effects begin to be evident. We find that both of these are true: the estimated breakpoint threshold (0.04 atm) was higher than the lethal threshold value of 0.01 atm, and was nearly identical to the $pO_2$ at which oxygen consumption rate began to decline (0.039 atm.  However, we note that this experiment was conducted at temperatures that were greater than those experienced by sablefish at typical depths, and used relatively small-sized adult sablefish (675 g).
+    
+* caveats, latent variables, habitat, confounding of depth and everything else
+* note that the model predicts mean catch rate, but actual catch rate may vary (pull out statistics on percent deviance explained by model or some such thing).  

@@ -115,13 +115,12 @@ calc_po2_mi <- function(dat) {
   dat$sol_Dep = dat$sol0*dat$press
   dat$po2 = dat$o2_umolkg/dat$sol_Dep
   
-  # species-specific parameters
-  Ao = 1.16625e-13
-  Eo = 0.8736 # from cod, 0.8736.  Make it one half or double
-  B = 1200 # size in grams, roughly average (initial calculations used 10000g)
-  n = -0.208 # borrowed from cod 
-  
-  dat$mi = B^n*Ao*dat$po2/exp(-1*Eo/(boltz*(dat$temp+kelvin))) 
+  # species-specific parameters, estimated by fitting linear model to all data in Deutsch (fish only)
+  Eo <- 0.4525966 
+  Ao <- 5.780791e-06
+  n <- -0.303949 
+  B = 1000 # size in grams, roughly average
+  dat$mi = B^n*Ao*dat$po2 *exp(Eo/(boltz*(dat$temp+kelvin))) 
   return(dat)
 }
 
@@ -199,43 +198,8 @@ load_data <- function(fit.model= F, spc, constrain_latitude = F) {
   #O2 from trawl data is in ml/l 
   # just in case, remove any missing or nonsense values from sensors
   dat <- dplyr::filter(dat, !is.na(o2), !is.na(sal), !is.na(temp), is.finite(sal))
+  dat <- calc_po2_mi(dat)
   
-  gas_const = 8.31
-  partial_molar_vol = 0.000032
-  kelvin = 273.15
-  boltz = 0.000086173324
-  
-  #calculate percent saturation for O2 - assumes  units of mL O2/L
-  # Input:       S = Salinity (pss-78)
-  #              T = Temp (deg C) ! use potential temp
-  #depth is in meters
-  #[umole/kg] = [ml/L]*44660/(sigmatheta(P=0,theta,S) + 1000)
-  dat$SA = gsw_SA_from_SP(dat$sal,dat$depth,dat$longitude_dd,dat$latitude_dd) #absolute salinity for pot T calc
-  dat$pt = gsw_pt_from_t(dat$SA,dat$temp,dat$depth) #potential temp at a particular depth
-  dat$CT = gsw_CT_from_t(dat$SA,dat$temp,dat$depth) #conservative temp
-  dat$sigma0 = gsw_sigma0(dat$SA,dat$CT)
-  dat$o2_umolkg = dat$o2*44660/(dat$sigma0+1000)
- 
-  
-  dat$O2_Sat0 = gsw_O2sol_SP_pt(dat$sal,dat$pt)
-  
-  #= o2satv2a(sal,pt) #uses practical salinity and potential temp - solubity at p =1 atm
-  dat$press = exp(dat$depth*10000*partial_molar_vol/gas_const/(dat$temp+kelvin))
-  dat$O2_satdepth = dat$O2_Sat0*dat$press
-  
-  #solubility at p=0
-  dat$sol0 = dat$O2_Sat0/0.209
-  dat$sol_Dep = dat$sol0*dat$press
-  dat$po2 = dat$o2_umolkg/dat$sol_Dep
-  
-  # species-specific parameters, Ao doesn't really matter because it is a constant
-  Ao = 1.16625e-13
-  Eo = 0.8736 # from cod, 0.8736.  Make it one half or double
-  # the below also doesn't matter because B^n is a constant and the index is scaled for fitting.  
-  B = 1200 # size in grams, roughly average (initial calculations used 10000g)
-  n = -0.208 # borrowed from cod 
-  
-  dat$mi = B^n*Ao*dat$po2/exp(-1*Eo/(boltz*(dat$temp+kelvin)))
   dat <- dplyr::filter(dat, !is.na(temp), !is.na(mi))
   
   # prepare data and models -------------------------------------------------
@@ -292,41 +256,8 @@ load_data_jscope <- function(spc, years) {
   # get Metabolic Indiex
   # converted from Halle Berger matlab script
   #O2 from trawl data is in ml/l - may need to be converted to umol/kg
-  gas_const = 8.31
-  partial_molar_vol = 0.000032
-  kelvin = 273.15
-  boltz = 0.000086173324
-  
-  #calculate percent saturation for O2 - assumes  units of mL O2/L
-  # Input:       S = Salinity (pss-78)
-  #              T = Temp (deg C) ! use potential temp
-  #depth is in meters
-  #[umole/kg] = [ml/L]*44660/(sigmatheta(P=0,theta,S) + 1000)
-  dat$SA = gsw_SA_from_SP(dat$sal,dat$depth,dat$longitude_dd,dat$latitude_dd) #absolute salinity for pot T calc
-  dat$pt = gsw_pt_from_t(dat$SA,dat$temp,dat$depth) #potential temp at a particular depth
-  dat$CT = gsw_CT_from_t(dat$SA,dat$temp,dat$depth) #conservative temp
-  dat$sigma0 = gsw_sigma0(dat$SA,dat$CT)
-  dat$o2_umolkg = dat$o2*44660/(dat$sigma0+1000)
- 
-  
-  dat$O2_Sat0 = gsw_O2sol_SP_pt(dat$sal,dat$pt)
-  
-  #= o2satv2a(sal,pt) #uses practical salinity and potential temp - solubity at p =1 atm
-  dat$press = exp(dat$depth*10000*partial_molar_vol/gas_const/(dat$temp+kelvin))
-  dat$O2_satdepth = dat$O2_Sat0*dat$press
-  
-  #solubility at p=0
-  dat$sol0 = dat$O2_Sat0/0.209
-  dat$sol_Dep = dat$sol0*dat$press
-  dat$po2 = dat$o2_umolkg/dat$sol_Dep
-  
-  # species-specific parameters
-  Ao = 1.16625e-13
-  Eo = 0.8736 # from cod, 0.8736.  Make it one half or double
-  B = 1200 # size in grams, roughly average (initial calculations used 10000g)
-  n = -0.208 # borrowed from cod 
-  
-  dat$mi = B^n*Ao*dat$po2/exp(-1*Eo/(boltz*(dat$temp+kelvin)))
+  dat <- calc_po2_mi(dat)
+    
   dat$longitude <- dat$longitude / 10
   dat$latitude <- dat$latitude / 10
   # prepare data and models -------------------------------------------------
@@ -458,15 +389,15 @@ get_models_compare <- function() {
  
 
 get_models <- function() {
-  formula <- c("log_depth_scaled + log_depth_scaled2 + as.factor(year)", 
-               "log_depth_scaled + log_depth_scaled2 + as.factor(year) + temp", 
-               "log_depth_scaled + log_depth_scaled2 + as.factor(year) + po2",
-               "log_depth_scaled + log_depth_scaled2 + as.factor(year) + mi",
-               "log_depth_scaled + log_depth_scaled2 + as.factor(year) + temp + po2",
-               "log_depth_scaled + log_depth_scaled2 + as.factor(year) + temp + po2 + temp * po2",
-               "log_depth_scaled + log_depth_scaled2 + as.factor(year) + breakpt(po2)",
-               "log_depth_scaled + log_depth_scaled2 + as.factor(year) + breakpt(po2) + temp",
-               "log_depth_scaled + log_depth_scaled2 + as.factor(year) + breakpt(mi)"
+  formula <- c("log_depth_scaled + log_depth_scaled2  + as.factor(year)", 
+               "log_depth_scaled + log_depth_scaled2  + as.factor(year) + temp", 
+               "log_depth_scaled + log_depth_scaled2  + as.factor(year) + po2",
+               "log_depth_scaled + log_depth_scaled2  + as.factor(year) + mi",
+               "log_depth_scaled + log_depth_scaled2  + as.factor(year) + temp + po2",
+               "log_depth_scaled + log_depth_scaled2  + as.factor(year) + temp + po2 + temp * po2",
+               "log_depth_scaled + log_depth_scaled2  + as.factor(year) + breakpt(po2)",
+               "log_depth_scaled + log_depth_scaled2  + as.factor(year) + breakpt(po2) + temp",
+               "log_depth_scaled + log_depth_scaled2  + as.factor(year) + breakpt(mi)"
   )
 }                     
 get_bp_parameters <- function(m) {
@@ -487,4 +418,10 @@ get_partial_resisuals<- function(m, dat) {
   partial_residuals <- residual * exp(dat$bp)
   return(partual_residuals)
 }
+
+convert_class <- function(x) {
+  for (i in 1:ncol(x)) x[,i] <- as(x[,i], Class = "matrix")
+  return(x)
+}
+  
 

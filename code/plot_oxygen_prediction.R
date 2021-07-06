@@ -8,16 +8,17 @@ library(sp)
 library(gsw)
 library(rgdal)
 library(future)
+library(sf)
 require(rnaturalearth)
 require(rnaturalearthdata) 
 require(rnaturalearthhires)
 require(ggplot2)
 library(viridis)
-library(sf)
+
+library(gridExtra)
+library(egg)
 
 
-# load handy functions
-source("code/mi_functions.R")
 
 # Need to load the data to get scaled stuff
 fit.model <- F # do you want to fit SDM to environmental variables and impute missing values?
@@ -28,43 +29,30 @@ no_depth <- FALSE # Do you want to run models w/out a depth effect?
 use_cv = FALSE # specify whether to do cross validation or not
 use_AIC = TRUE # specify whether to use AIC
 use_jscope <- F # specify whether to only use J-SCOPE based estimates.  Overrides compare_sources and fit.model
-fit_new_po2_model <- T # do you want to re-fit the spatio-temporal model of oxgyen?
-
+fit_new_po2_model <- F # do you want to re-fit the spatio-temporal model of oxgyen?
+years.2.plot <- c(2010:2015)
 
 # load data
 if(!use_jscope) dat <- load_data(spc = "sablefish", constrain_latitude, fit.model)
 if(use_jscope) dat <- load_data_jscope(spc = "sablefish", years = years)
 
 # rescale variables
-mean.depth <- mean(log(dat$depth))
-sd.depth <- sd(log(dat$depth))
-
-dat$log_depth_scaled <- as.numeric(scale(log(dat$depth)))
+mean.depth <- mean(dat$depth)
+sd.depth <- sd(dat$depth)
+dat$log_depth_scaled <- (scale(log(dat$depth)))
 dat$log_depth_scaled2 <- dat$log_depth_scaled^2
-dat$jday_scaled <- as.numeric(scale(dat$julian_day))
-dat$jday_scaled2 <- as.numeric(scale(log(dat$julian_day) ^ 2))
-
-mean.po2 <- mean(dat$po2)
-std.po2 <- sd(dat$po2)
-mean.do <- mean(dat$o2)
-std.do <- sd(dat$o2)
-mean.mi <- mean(dat$mi)
-std.mi <- sd(dat$mi)
+dat$jday_scaled <- (scale(dat$julian_day))
+dat$jday_scaled2 <- (scale(log(dat$julian_day) ^ 2))
+dat$temp <- scale(dat$temp)
+dat$po2 <- (scale(dat$po2))
 dat$X <- dat$longitude
 dat$Y <- dat$latitude
-
-# use this to fit a spatio-temporal model of pO2, so must scale it first
-dat$po2 <- as.numeric(scale(dat$po2))
+dat$year <- as.factor(dat$year)
 if (fit_new_po2_model) {
 
-# Load best modelfor sablefish
-m <- readRDS("output/wc/model_8_sablefish.rds")
 c_spde <-make_mesh(data = dat, xy_cols = c("X", "Y"), n_knots = 250) # choose # knots
-
-
-# removed jday_scaled2 because may not have converged
 po2_model <-  sdmTMB(formula = po2 ~ -1 + log_depth_scaled + log_depth_scaled2 
-                      + jday_scaled + jday_scaled2,
+                      + jday_scaled + year,
                      data = dat,
                      time = "year", spde = c_spde, anisotropy = TRUE,
                      silent = TRUE, spatial_trend = FALSE, spatial_only = FALSE,
@@ -120,7 +108,9 @@ wc_grid <- as.data.frame(rasterToPoints(bathy_raster))
 colnames(wc_grid) = c("X", "Y", "depth")
 
 # scale covariates
-wc_grid$log_depth_scaled <- (log(wc_grid$depth * -1) - mean.depth) / sd.depth
+wc_grid$log_depth <- log(-wc_grid$depth)
+
+wc_grid$log_depth_scaled <- (wc_grid$log_depth - attr(dat$log_depth_scaled, "scaled:center")) / attr(dat$log_depth_scaled, "scaled:scale")
 wc_grid$log_depth_scaled2 <- wc_grid$log_depth_scaled ^ 2
 wc_grid$X <- wc_grid$X/1000
 wc_grid$Y <- wc_grid$Y/1000
@@ -139,14 +129,21 @@ saveRDS(df, file = "output/wc_grid_df.rds")
 }
 
 if(!fit_new_po2_model) df <- readRDS("output/wc_grid_df.rds")
-
-
+df$year <- as.factor(df$year)
+df$log_depth_scaled <- as(df$log_depth_scaled, Class = "matrix")
+df$log_depth_scaled2 <- as(df$log_depth_scaled2, Class = "matrix")
+df$jday_scaled <- as(df$jday_scaled, Class = "matrix")
+df$jday_scaled2 <- as(df$jday_scaled2, Class = "matrix")
 pred_po2 <- predict(po2_model,
                     newdata = df,
                     return_tmb_object = F)
 # convert estimate (which is scaled) to original po2 units
-pred_po2$po2 <- pred_po2$est *std.po2 + mean.po2
+pred_po2$po2 <- back.convert(pred_po2$est, attr(dat$po2,"scaled:center"), attr(dat$po2, "scaled:scale"))
 
+pred_po2 <- dplyr::filter(pred_po2, year %in% years.2.plot)
+
+if(!use_jscope) saveRDS(pred_po2, file = "output/wc/pred_po2.RDS")
+if(use_jscope) saveRDS(pred_po2, file = "output/wc/pred_po2_jscope.RDS")
 
 # sean's code
 map_data <- rnaturalearth::ne_countries(scale = "large", returnclass = "sf")
@@ -168,30 +165,23 @@ if(use_jscope) {
   ylimits = c(4762418, 5366000)
 }
 
-plotfilename<-"plots/po2_map.pdf"
-pdf(file = plotfilename, 
-    height = 4,
-    width = 8
-)
-ggplot(us_coast_proj) + geom_sf() +
+
+pmap <-ggplot(us_coast_proj) + geom_sf() +
   geom_raster(data = pred_po2, aes(x = X * 1000, y = Y * 1000, fill = po2)) +
-  facet_wrap(~year, ncol = 6) +
+  facet_wrap(~year, ncol = 3) +
   scale_x_continuous(breaks = c(-125, -120), limits = xlimits) +
   ylim(ylimits[1], ylimits[2]) +
-  scale_fill_viridis_c(limits = c(0.0, 0.1), oob = scales::squish) +
+  scale_fill_viridis_c(limits = c(0, 0.1), oob = scales::squish,name = bquote(pO[2])) +
   labs(x = "Longitude", y = "Latitude") +
   theme_bw() +
-  theme(
-    plot.background = element_blank()
-    ,panel.grid.major = element_blank()
+  theme(panel.grid.major = element_blank()
     ,panel.grid.minor = element_blank()
     ,panel.border = element_blank()
   ) +
   theme(axis.line = element_line(color = "black")) +
   theme(axis.text = element_text(size = 12)) +
-  theme(axis.title= element_text(size = 14))
-dev.off()
-system2("open", args = c("-a Skim.app", plotfilename))
+  theme(axis.title= element_text(size = 14)) +
+  theme(legend.text = element_text(size = 12))
 
-
+ggsave(filename = "plots/po2map.png", height = 9, width = 6.5, units = "in")
 

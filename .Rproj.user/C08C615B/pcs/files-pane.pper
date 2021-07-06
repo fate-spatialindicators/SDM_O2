@@ -1,9 +1,13 @@
 {
-    "path" : "~/Dropbox/Desktop/Rcode/SDM_O2/code",
-    "sortOrder" : [
+    "path": "~/Dropbox/Desktop/Rcode/SDM_O2/code",
+    "sortOrder": [
         {
-            "ascending" : true,
-            "columnIndex" : 2
+            "columnIndex": 4,
+            "ascending": false
+        },
+        {
+            "columnIndex": 2,
+            "ascending": true
         }
     ]
 }
