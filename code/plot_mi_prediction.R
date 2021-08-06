@@ -29,7 +29,7 @@ no_depth <- FALSE # Do you want to run models w/out a depth effect?
 use_cv = FALSE # specify whether to do cross validation or not
 use_AIC = TRUE # specify whether to use AIC
 use_jscope <- F # specify whether to only use J-SCOPE based estimates.  Overrides compare_sources and fit.model
-fit_new_model <- F # do you want to re-fit the spatio-temporal model of oxgyen?
+fit_new_model <- T # do you want to re-fit the spatio-temporal model of oxgyen?
 years.2.plot <- c(2010:2015)
 
 # load data
@@ -112,7 +112,7 @@ ggplot(us_coast_proj) + geom_sf() +
   facet_wrap(~year, ncol = 3) +
   scale_x_continuous(breaks = c(-125, -120), limits = xlimits) +
   ylim(ylimits[1], ylimits[2]) +
-  scale_fill_viridis_c(limits = c(0, 4), oob = scales::squish,name = "Metabolic Index") +
+  scale_fill_viridis_c(limits = c(0, 6), oob = scales::squish,name = "Metabolic Index") +
   labs(x = "Longitude", y = "Latitude") +
   theme_bw() +
   theme(

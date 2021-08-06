@@ -105,7 +105,7 @@ ggplot(us_coast_proj) + geom_sf() +
   facet_wrap(~year, ncol = 3) +
   scale_x_continuous(breaks = c(-125, -120), limits = xlimits) +
   ylim(ylimits[1], ylimits[2]) +
-  scale_fill_viridis_c(limits = c(3, 11), oob = scales::squish, name = "Temperature (C)") +
+  scale_fill_viridis_c(limits = c(3, 8), oob = scales::squish, name = "Temperature (C)") +
   labs(x = "Longitude", y = "Latitude") +
   theme_bw() +
   theme(panel.grid.major = element_blank()

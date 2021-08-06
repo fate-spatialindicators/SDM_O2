@@ -19,14 +19,14 @@
             {
                 "id": 2,
                 "path": "~/Dropbox/Desktop/Rcode/SDM_O2/code/run_wc_models.R",
-                "line_number": 178,
+                "line_number": 179,
                 "function_steps": "",
                 "function_name": "toplevel",
                 "state": 1,
                 "editor_state": 1,
-                "editor_line_number": 178,
+                "editor_line_number": 179,
                 "is_pending_debug_completion": false,
-                "needs_updated_steps": false,
+                "needs_updated_steps": true,
                 "type": 1,
                 "is_package_breakpoint": false,
                 "package_name": ""

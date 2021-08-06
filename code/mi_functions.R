@@ -120,20 +120,61 @@ calc_po2_mi <- function(dat) {
   Ao <- 5.780791e-06
   n <- -0.303949 
   B = 1000 # size in grams, roughly average
-  dat$mi = B^n*Ao*dat$po2 *exp(Eo/(boltz*(dat$temp+kelvin))) 
+  avgbn <-0.1124206  # this works for the adult class (0.5 - 6 kg).  for the large adult, adjust
+  dat$mi = avgbn*Ao*dat$po2 *exp(Eo/(boltz*(dat$temp+kelvin))) 
   return(dat)
 }
-
+calc_po2_mi_nemuro <- function(dat) {
+  #O2 from trawl data is in ml/l - may need to be converted to umol/kg
+  # use this code when input data is nemuro (lacking salinity data so using mean absolute salinity
+  gas_const = 8.31
+  partial_molar_vol = 0.000032
+  kelvin = 273.15
+  boltz = 0.000086173324
+  
+  #calculate percent saturation for O2 - assumes  units of mL O2/L
+  # Input:       S = Salinity (pss-78)
+  #              T = Temp (deg C) ! use potential temp
+  #depth is in meters
+  #[umole/kg] = [ml/L]*44660/(sigmatheta(P=0,theta,S) + 1000)
+  dat$SA = 34.2
+  dat$pt = gsw_pt_from_t(dat$SA,dat$temp,dat$depth) #potential temp at a particular depth
+  dat$CT = gsw_CT_from_t(dat$SA,dat$temp,dat$depth) #conservative temp
+  dat$sigma0 = gsw_sigma0(dat$SA,dat$CT)
+  dat$o2_umolkg = dat$o2*44660/(dat$sigma0+1000)
+  
+  
+  dat$O2_Sat0 = gsw_O2sol_SP_pt(34,dat$pt)
+  
+  #= o2satv2a(sal,pt) #uses practical salinity and potential temp - solubity at p =1 atm
+  dat$press = exp(dat$depth*10000*partial_molar_vol/gas_const/(dat$temp+kelvin))
+  dat$O2_satdepth = dat$O2_Sat0*dat$press
+  
+  #solubility at p=0
+  dat$sol0 = dat$O2_Sat0/0.209
+  dat$sol_Dep = dat$sol0*dat$press
+  dat$po2 = dat$o2_umolkg/dat$sol_Dep
+  
+  # species-specific parameters, estimated by fitting linear model to all data in Deutsch (fish only)
+  Eo <- 0.4525966 
+  Ao <- 5.780791e-06
+  n <- -0.303949 
+  B = 1000 # size in grams, roughly average
+  avgbn <-0.1124206  # this works for the adult class (0.5 - 6 kg).  for the large adult, adjust
+  dat$mi = avgbn*Ao*dat$po2 *exp(Eo/(boltz*(dat$temp+kelvin))) 
+  return(dat)
+}
 load_data <- function(fit.model= F, spc, constrain_latitude = F) {
-  
-  dat <- readRDS("survey_data/joined_nwfsc_data.rds")
-  
+    dat <- readRDS("survey_data/joined_nwfsc_data.rds")
+    dat_by_size <- readRDS("data/survey_data/sablefish_size_dist.rds")
+    dat = dplyr::filter(dat, species == spc, year%in%seq(2010,2015))
+    dat <- left_join(dat, dat_by_size, by = "trawl_id")
+    # remove tows where there was positive catch but no length measurements
+    dat <- dplyr::filter(dat, !is.na(p1))
   # analyze sablefish for years and hauls with adequate oxygen and temperature data, within range of occurrence
-  dat = dplyr::filter(dat, species == spc, year%in%seq(2010,2015))
+ 
   if (constrain_latitude) dat <- dplyr::filter(dat, latitude_dd >=43)
-
-  
-  
+ 
   # get julian day
   dat$julian_day <- rep(NA, nrow(dat))
   for (i in 1:nrow(dat)) dat$julian_day[i] <- as.POSIXlt(dat$date[i], format = "%Y-%b-%d")$yday
@@ -159,8 +200,6 @@ load_data <- function(fit.model= F, spc, constrain_latitude = F) {
     dat$jday_scaled2 <- dat$jday_scaled^2
     # create temporary data file for fitting
     fit_dat <- dplyr::filter(dat, !is.na(o2))
-    
-    
     c_spde <-make_mesh(data = fit_dat, xy_cols = c("X", "Y"), n_knots = 250) # choose # knots
     # fit dissolved oxygen 
     o2_model <-  sdmTMB(formula = o2 ~ -1 + log_depth_scaled + log_depth_scaled2 
@@ -199,13 +238,12 @@ load_data <- function(fit.model= F, spc, constrain_latitude = F) {
   # just in case, remove any missing or nonsense values from sensors
   dat <- dplyr::filter(dat, !is.na(o2), !is.na(sal), !is.na(temp), is.finite(sal))
   dat <- calc_po2_mi(dat)
-  
   dat <- dplyr::filter(dat, !is.na(temp), !is.na(mi))
   
   # prepare data and models -------------------------------------------------
   
   dat <- dplyr::select(dat, trawl_id, species, year, longitude_dd, latitude_dd, cpue_kg_km2,
-                o2, temp, depth, mi, po2, julian_day, pass)
+                o2, temp, depth, mi, po2, julian_day, pass, p1, p2, p3, p4)
   
   
   # UTM transformation
@@ -222,6 +260,223 @@ load_data <- function(fit.model= F, spc, constrain_latitude = F) {
   return(dat)
 }
 
+load_data_nemuro <- function(fit.model= F, spc, constrain_latitude = F) {
+  dat <- readRDS("survey_data/trawl_roms_nemuro_joined_hauls.rds")
+  catch_data <- readRDS("data/survey_data/wcbts_catch_2019-08-01.rds")
+  catch_data <- catch_data %>%
+    filter(Scientific_name == "Anoplopoma fimbria") %>%
+    select(trawl_id = Trawl_id, cpue_kg_km2)
+  catch_data$trawl_id <- as.numeric(catch_data$trawl_id)
+  
+  dat_by_size <- readRDS("data/survey_data/sablefish_size_dist.rds")
+  #dat = dplyr::filter(dat, species == spc, year%in%seq(2010,2015))
+  dat <- left_join(dat, dat_by_size, by = "trawl_id")
+  dat <- left_join(dat, catch_data, by ="trawl_id")
+  
+  # remove tows where there were no length measurements
+  dat <- dplyr::filter(dat, !is.na(p1))
+  
+  # analyze sablefish for years and hauls with adequate oxygen and temperature data, within range of occurrence
+  # get year from date
+ 
+  
+  dat <- dplyr::rename(dat, o2 = oxygen_roms_ml_l, 
+                       depth = depth_trawl, 
+                       temp = temp_roms, 
+                       longitude_dd = lon_trawl,
+                       latitude_dd = lat_trawl)
+  for (i in 1:nrow(dat)) dat$year[i] <- format(dat$date[i], format = "%Y")
+  
+  # get julian day and year
+  dat$julian_day <- rep(NA, nrow(dat))
+  dat$year <- rep(NA, nrow(dat))
+  for (i in 1:nrow(dat)) {
+    dat$julian_day[i] <- as.POSIXlt(dat$date[i], format = "%Y-%b-%d")$yday
+    dat$year[i] <- as.numeric(format(dat$date[i], "%Y"))
+  }
+
+  
+  # compute metabolic index (mi) --------------------------------------------
+  # converted from Halle Berger matlab script
+  
+  #O2 from trawl data is in ml/l 
+  # just in case, remove any missing or nonsense values from sensors
+  dat <- dplyr::filter(dat, !is.na(o2), !is.na(temp))
+  dat <- calc_po2_mi_nemuro(dat)
+  dat <- dplyr::filter(dat, !is.na(mi))
+  
+  # prepare data and models -------------------------------------------------
+  
+  dat <- dplyr::select(dat, trawl_id, year, longitude_dd, latitude_dd, cpue_kg_km2,
+                       o2, temp, depth, mi, po2, julian_day, p1, p2, p3, p4)
+  
+  
+  # UTM transformation
+  dat_ll = dat
+  coordinates(dat_ll) <- c("longitude_dd", "latitude_dd")
+  proj4string(dat_ll) <- CRS("+proj=longlat +datum=WGS84")
+  # convert to utm with spTransform
+  dat_utm = spTransform(dat_ll, 
+                        CRS("+proj=utm +zone=10 +datum=WGS84 +units=km"))
+  # convert back from sp object to data frame
+  dat = as.data.frame(dat_utm)
+  dat = dplyr::rename(dat, longitude = longitude_dd, 
+                      latitude = latitude_dd)
+  return(dat)
+}
+
+
+load_data_number <- function(fit.model= F, spc, constrain_latitude = F) {
+  dat <- readRDS("survey_data/joined_nwfsc_data.rds")
+  dat_by_size <- readRDS("data/survey_data/sablefish_size_dist_number.rds")
+  dat = dplyr::filter(dat, species == spc, year%in%seq(2010,2015))
+  dat <- left_join(dat, dat_by_size, by = "trawl_id")
+  # remove tows where there was positive catch but no length measurements
+  dat <- dplyr::filter(dat, !is.na(p1))
+  # analyze sablefish for years and hauls with adequate oxygen and temperature data, within range of occurrence
+  
+  if (constrain_latitude) dat <- dplyr::filter(dat, latitude_dd >=43)
+  
+  # get julian day
+  dat$julian_day <- rep(NA, nrow(dat))
+  for (i in 1:nrow(dat)) dat$julian_day[i] <- as.POSIXlt(dat$date[i], format = "%Y-%b-%d")$yday
+  
+  
+  # create temporary data file, matching J-SCOPE extent, for model fitting
+  if(fit.model) {
+    # constraint to J-SCOPE extent
+    # UTM transformation
+    dat_ll = dat
+    coordinates(dat_ll) <- c("longitude_dd", "latitude_dd")
+    proj4string(dat_ll) <- CRS("+proj=longlat +datum=WGS84")
+    # convert to utm with spTransform
+    dat_utm = spTransform(dat_ll, 
+                          CRS("+proj=utm +zone=10 +datum=WGS84 +units=km"))
+    # convert back from sp object to data frame
+    dat$X <- as.data.frame(dat_utm)$longitude_dd
+    dat$Y <- as.data.frame(dat_utm)$latitude_dd
+    # scale depth and julian dat
+    dat$log_depth_scaled <- scale(log(dat$depth))
+    dat$log_depth_scaled2 <- dat$log_depth_scaled^2
+    dat$jday_scaled <- scale(dat$julian_day)
+    dat$jday_scaled2 <- dat$jday_scaled^2
+    # create temporary data file for fitting
+    fit_dat <- dplyr::filter(dat, !is.na(o2))
+    c_spde <-make_mesh(data = fit_dat, xy_cols = c("X", "Y"), n_knots = 250) # choose # knots
+    # fit dissolved oxygen 
+    o2_model <-  sdmTMB(formula = o2 ~ -1 + log_depth_scaled + log_depth_scaled2 
+                        +  as.factor(year) + jday_scaled + jday_scaled2,
+                        data = fit_dat,
+                        time = "year", spde = c_spde, anisotropy = TRUE,
+                        silent = TRUE, spatial_trend = FALSE, spatial_only = FALSE,
+                        control = sdmTMBcontrol(step.min = 0.01, step.max = 1))
+    # get predictions
+    pred_o2 <- predict(o2_model,
+                       newdata = dat,
+                       return_tmb_object = F)
+    #impute missing values
+    index <- which(is.na(dat$o2))
+    dat$o2[index] <- pred_o2$est[index]
+    
+    # impute salinity, following same steps
+    sal_model <- sdmTMB(formula = o2 ~ -1 + log_depth_scaled + log_depth_scaled2 
+                        +  as.factor(year) + jday_scaled + jday_scaled2,
+                        data = fit_dat,
+                        time = "year", spde = c_spde, anisotropy = TRUE,
+                        silent = TRUE, spatial_trend = FALSE, spatial_only = FALSE,
+                        control = sdmTMBcontrol(step.min = 0.01, step.max = 1)
+    )
+    pred_sal <- predict(sal_model,
+                        newdat = dat,
+                        return_tmb_object = F)
+    index <- which(is.na(dat$sal))
+    dat$sal[index] <- pred_sal$est[index]
+  }
+  
+  # compute metabolic index (mi) --------------------------------------------
+  # converted from Halle Berger matlab script
+  
+  #O2 from trawl data is in ml/l 
+  # just in case, remove any missing or nonsense values from sensors
+  dat <- dplyr::filter(dat, !is.na(o2), !is.na(sal), !is.na(temp), is.finite(sal))
+  dat <- calc_po2_mi(dat)
+  dat <- dplyr::filter(dat, !is.na(temp), !is.na(mi))
+  
+  # prepare data and models -------------------------------------------------
+  
+  dat <- dplyr::select(dat, trawl_id, species, year, longitude_dd, latitude_dd, cpue_no_km2,
+                       o2, temp, depth, mi, po2, julian_day, pass, p1, p2, p3, p4)
+  
+  
+  # UTM transformation
+  dat_ll = dat
+  coordinates(dat_ll) <- c("longitude_dd", "latitude_dd")
+  proj4string(dat_ll) <- CRS("+proj=longlat +datum=WGS84")
+  # convert to utm with spTransform
+  dat_utm = spTransform(dat_ll, 
+                        CRS("+proj=utm +zone=10 +datum=WGS84 +units=km"))
+  # convert back from sp object to data frame
+  dat = as.data.frame(dat_utm)
+  dat = dplyr::rename(dat, longitude = longitude_dd, 
+                      latitude = latitude_dd)
+  return(dat)
+}
+
+
+load_data_by_size <- function(sizeclass) {
+  
+    sable_dat <- readRDS("data/Sablefish_expanded.rds")
+    sable_dat <- dplyr::filter(sable_dat, year%in%seq(2010,2015))
+    sable_dat$trawl_id <- as.numeric(sable_dat$trawl_id)
+    if(sizeclass == "juv") sable_dat$cpue_kg_km2 <- sable_dat$juv_cpue_kg_km2
+    if(sizeclass == "adult") sable_dat$cpue_kg_km2 <- sable_dat$adult_cpue_kg_km2
+    if(sizeclass == "large_adult") sable_dat$cpue_kg_km2 <- sable_dat$large_adult_cpue_kg_km2
+    sable_dat <- dplyr::select(sable_dat, trawl_id, cpue_kg_km2)
+    
+  
+  joined_dat = readRDS("survey_data/joined_nwfsc_data.rds")
+  # analyze sablefish for years and hauls with adequate oxygen and temperature data, within range of occurrence
+  joined_dat = dplyr::filter(joined_dat, species == "sablefish", year%in%seq(2010,2015))
+  joined_dat <- dplyr::select(joined_dat, -cpue_kg_km2)
+  
+  dat <- left_join(sable_dat, joined_dat, by = "trawl_id")
+
+  
+  # get julian day
+  dat$julian_day <- rep(NA, nrow(dat))
+  for (i in 1:nrow(dat)) dat$julian_day[i] <- as.POSIXlt(dat$date[i], format = "%Y-%b-%d")$yday
+  
+
+  
+  # compute metabolic index (mi) --------------------------------------------
+  # converted from Halle Berger matlab script
+  
+  #O2 from trawl data is in ml/l 
+  # just in case, remove any missing or nonsense values from sensors
+  dat <- dplyr::filter(dat, !is.na(o2), !is.na(sal), !is.na(temp), is.finite(sal))
+  dat <- calc_po2_mi(dat)
+  
+  dat <- dplyr::filter(dat, !is.na(temp), !is.na(mi))
+  
+  # prepare data and models -------------------------------------------------
+  
+  dat <- dplyr::select(dat, trawl_id, species, year, longitude_dd, latitude_dd, cpue_kg_km2,
+                       o2, temp, depth, mi, po2, julian_day, pass)
+  
+  
+  # UTM transformation
+  dat_ll = dat
+  coordinates(dat_ll) <- c("longitude_dd", "latitude_dd")
+  proj4string(dat_ll) <- CRS("+proj=longlat +datum=WGS84")
+  # convert to utm with spTransform
+  dat_utm = spTransform(dat_ll, 
+                        CRS("+proj=utm +zone=10 +datum=WGS84 +units=km"))
+  # convert back from sp object to data frame
+  dat = as.data.frame(dat_utm)
+  dat = dplyr::rename(dat, longitude = longitude_dd, 
+                      latitude = latitude_dd)
+  return(dat)
+}
 load_data_jscope <- function(spc, years) {
   
   #load trawl data

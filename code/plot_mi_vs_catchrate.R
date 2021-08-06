@@ -26,6 +26,7 @@ Eo <- 0.4525966
 Ao <- 5.780791e-06
 n <- -0.303949 
 B = 1000 # size in grams, roughly average
+avebn <- 0.1124206
 logAo <- log(Ao)
 
 t.range <- 2:12
@@ -38,10 +39,12 @@ plot.phi <- data.frame(inv_temp =1/(k.range * kb),
 
 plot.obs <- data.frame(x = 1/((kelvin + 12) * kb), y = - logAo - Eo/(kb* (kelvin + 12)))
 dat$inv_temp <- 1 / (boltz * (dat$temp+kelvin))
-dat$logbnpo2 <- log(B^n * dat$po2)  
+dat$logbnpo2 <- log(avebn * dat$po2)
 
 # only look at depths that are commonly inhabited by sablefish
 dat <- dplyr::filter(dat, depth >=200)
+# only look at intermediate sized sablefish, 0.5 - 6 kg)
+dat$cpue_kg_km2 <- dat$cpue_kg_km2 * (dat$p2 + dat$p3) 
 
 ggplot() +
   geom_point(data = dat, aes(x = inv_temp, y = logbnpo2, col = log(cpue_kg_km2)), size = 0.5) +

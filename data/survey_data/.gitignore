@@ -1,0 +1,6 @@
+.DS_Store
+01 pull_data_googedrive.R
+wcbts_catch_2019-08-01.rds
+wcbts_haul_2019-08-01.rds
+wcbts_bio_2019-08-01.rds
+joined_goa.data.rds

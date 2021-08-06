@@ -69,7 +69,7 @@ if(use_jscope) {
   ylimits = c(4762418, 5366000)
 }
 
-best_model <- readRDS("output/wc/model_8_sablefish.rds")
+best_model <- readRDS("output/wc/model_8_sablefishp2_p3.rds")
 pred_po2 <- readRDS("output/wc/pred_po2.rds")
 pred_temp <-readRDS("output/wc/pred_temp.rds")
 
