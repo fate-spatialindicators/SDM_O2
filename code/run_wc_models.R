@@ -16,8 +16,7 @@ library(sp)
 library(gsw)
 library(rgdal)
 library(future)
-
-
+libary(ggplot2)
 
 # Set Run Specifications --------------------------------------------------
 spc <- "sablefish"
@@ -26,12 +25,16 @@ years <- 2010:2015 # designate years to use, must be 2010:2015 if using trawl-ba
 constrain_latitude <- F # do you want to constraint trawl data N of 43 degrees latitude
 compare_sources <- F # do you want to run models comparing trawl and J-SCOPE covariates?
 no_depth <- FALSE # Do you want to run models w/out a depth effect?
-use_cv = FALSE # specify whether to do cross validation or not
-use_AIC = TRUE # specify whether to use AIC
+use_cv = TRUE # specify whether to do cross validation or not
+use_AIC = FALSE # specify whether to use AIC
 use_jscope <- F # specify whether to only use J-SCOPE based estimates.  Overrides compare_sources and fit.model
 
 # parallel cross-validation:
-if (use_cv) future::plan(future::multisession)
+if (use_cv) {
+  is_rstudio <- !is.na(Sys.getenv("RSTUDIO", unset = NA))
+  is_unix <- .Platform$OS.type == "unix"
+  if (!is_rstudio && is_unix) plan(multicore, workers = 6L) else plan(multisession)
+}
 
 # load and scale data -----------------------------------------------------
 if (!use_jscope) {
@@ -123,60 +126,66 @@ AICmat <-
   matrix(NA, nrow = length(m_df), ncol = 1) # set up array for output
 rownames(AICmat) <- rownames(dAIC) <- m_df
 
-tweedie_dens <- rep(NA_real_, length(m_df))
+if (use_cv) {
+  tweedie_dens <- matrix(NA_real_, nrow = length(m_df), ncol = 3L)
+} else {
+  tweedie_dens <- matrix(NA_real_, nrow = length(m_df), ncol = 1L)
+}
 
 # fit models and save files to output/wc folder
-for (i in seq(1, length(m_df))) {
-  print(paste0("model # ", i, " of ", length(m_df)))
-  formula = paste0("cpue_kg_km2 ~ -1 +", m_df[i])
-  if (no_depth)
-    formula <-
-    gsub(
-      pattern = "log_depth_scaled + log_depth_scaled2 +",
-      x = formula,
-      replacement = "",
-      fixed = T
-    )
-  
-  # fit model with or without cross-validation
-  if (use_cv) {
-    set.seed(192839)
-    dat$fold_ids <- sample(seq_len(6), nrow(dat), replace = TRUE)
-    m <- sdmTMB_cv(
-      formula = as.formula(formula),
-      data = dat,
-      time = NULL,
-      spde = spde,
-      fold_ids = dat$fold_ids,
-      family = tweedie(link = "log"),
-      anisotropy = TRUE,
-      spatial_only = TRUE,
-      silent = TRUE,
-      control = sdmTMBcontrol(nlminb_loops = 1, newton_loops = 1)
-    )
-    dir.create("output/wc/cv/", showWarnings = FALSE)
-    saveRDS(m, file = paste0("output/wc/cv/model_", i, "_", spc, "_cv.rds"))
-    tweedie_dens[i] <- sum(m$fold_loglik)
+for (j in seq_len(ncol(tweedie_dens))) {
+  set.seed(j * 102849)
+  dat$fold_ids <- sample(seq_len(12), nrow(dat), replace = TRUE)
+  for (i in seq(1, length(m_df))) {
+    print(paste0("model # ", i, " of ", length(m_df)))
+    formula = paste0("cpue_kg_km2 ~ -1 +", m_df[i])
+    if (no_depth)
+      formula <-
+      gsub(
+        pattern = "log_depth_scaled + log_depth_scaled2 +",
+        x = formula,
+        replacement = "",
+        fixed = T
+      )
     
-  } else {
-    m <- try(sdmTMB(
-      formula = as.formula(formula),
-      data = dat,
-      time = NULL,
-      reml = FALSE,
-      spde = spde,
-      family = tweedie(link = "log"),
-      anisotropy = TRUE,
-      spatial_only = TRUE
-    ),
-    silent = TRUE)
-    
-    if (class(m) != "try-error") {
-      if (no_depth)
-        saveRDS(m, file = paste0("output/wc/model_", i, "_", spc, "_nodepth.rds"))
-      if (!no_depth&!use_jscope)
-        saveRDS(m, file = paste0("output/wc/model_", i, "_", spc, ".rds"))
-      if(!no_depth&use_jscope) saveRDS(m, file = paste0("output/wc/model_", i, "_", spc, "_jscope.rds"))
+    # fit model with or without cross-validation
+    if (use_cv) {
+      m <- sdmTMB_cv(
+        formula = as.formula(formula),
+        data = dat,
+        time = NULL,
+        spde = spde,
+        fold_ids = dat$fold_ids,
+        family = tweedie(link = "log"),
+        anisotropy = TRUE,
+        spatial_only = TRUE,
+        silent = TRUE,
+        control = sdmTMBcontrol(nlminb_loops = 1, newton_loops = 1)
+      )
+      dir.create("output/wc/cv/", showWarnings = FALSE)
+      saveRDS(m, file = paste0("output/wc/cv/model_", i, j, "_", spc, "_cv.rds"))
+      tweedie_dens[i,j] <- sum(m$fold_loglik)
+      
+    } else {
+      m <- try(sdmTMB(
+        formula = as.formula(formula),
+        data = dat,
+        time = NULL,
+        reml = FALSE,
+        spde = spde,
+        family = tweedie(link = "log"),
+        anisotropy = TRUE,
+        spatial_only = TRUE
+      ),
+        silent = TRUE)
+      
+      if (class(m) != "try-error") {
+        if (no_depth)
+          saveRDS(m, file = paste0("output/wc/model_", i, "_", spc, "_nodepth.rds"))
+        if (!no_depth&!use_jscope)
+          saveRDS(m, file = paste0("output/wc/model_", i, "_", spc, ".rds"))
+        if(!no_depth&use_jscope) saveRDS(m, file = paste0("output/wc/model_", i, "_", spc, "_jscope.rds"))
+      }
     }
   }
 }
@@ -193,26 +202,41 @@ if (use_AIC) {
     m <- readRDS(filename)
     AICmat[i, 1] <- AIC(m)
   }
+  
+  # calculate and print out delta AIC table
+  dAIC[, 1] <- AICmat[, 1] - min(AICmat[, 1])
+  dAIC[, 1] <- as.numeric(sprintf(dAIC, fmt = '%.2f'))
+  print(spc)
+  dAIC
+  
+  # print best model
+  best.index <- which(dAIC==0)
 }
 
 if (use_cv) saveRDS(tweedie_dens, file = "output/wc/cv/tweedie_dens.rds")
 
-# calculate and print out delta AIC table
-
-dAIC[, 1] <- AICmat[, 1] - min(AICmat[, 1])
-dAIC[, 1] <- as.numeric(sprintf(dAIC, fmt = '%.2f'))
-print(spc)
-dAIC
-
-# print best model
-best.index <- which(dAIC==0)
-if (no_depth)
-  filename <- paste0("output/wc/model_", best.index, "_", spc, "_nodepth.rds")
-if (!no_depth&!use_jscope)
-  filename <- paste0("output/wc/model_", best.index, "_", spc, ".rds")
-if(!no_depth&use_jscope) 
-  filename <- paste0("output/wc/model_", best.index, "_", spc, "_jscope.rds")
+if (!use_cv) {
+  if (no_depth)
+    filename <- paste0("output/wc/model_", best.index, "_", spc, "_nodepth.rds")
+  if (!no_depth&!use_jscope)
+    filename <- paste0("output/wc/model_", best.index, "_", spc, ".rds")
+  if(!no_depth&use_jscope) 
+    filename <- paste0("output/wc/model_", best.index, "_", spc, "_jscope.rds")
   
-m <- readRDS(filename)
-summary(m)
+  m <- readRDS(filename)
+  summary(m)
+}
 
+if (use_cv) {
+  tweedie_dens <- readRDS("output/wc/cv/tweedie_dens.rds")
+  xx <- data.frame(f = m_df, Var1 = seq_along(m_df), stringsAsFactors = FALSE)
+  reshape2::melt(tweedie_dens) %>%
+    left_join(xx) %>% 
+    rename(split = Var2) %>% 
+    group_by(split) %>% 
+    mutate(value = value - max(value)) %>%
+    ggplot(aes(f, value, colour = as.factor(split), group = split)) + 
+    geom_point() +
+    geom_line() +
+    coord_flip() 
+}
