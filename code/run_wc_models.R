@@ -151,7 +151,8 @@ for (i in seq(1, length(m_df))) {
       family = tweedie(link = "log"),
       anisotropy = TRUE,
       spatial_only = TRUE,
-      silent = TRUE
+      silent = TRUE,
+      control = sdmTMBcontrol(nlminb_loops = 1, newton_loops = 1)
     )
     dir.create("output/wc/cv/", showWarnings = FALSE)
     saveRDS(m, file = paste0("output/wc/cv/model_", i, "_", spc, "_cv.rds"))
