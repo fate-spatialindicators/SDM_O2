@@ -137,6 +137,9 @@ for (i in seq(1, length(m_df))) {
       replacement = "",
       fixed = T
     )
+  
+  if (!"temp" %in% names(dat)) dat$temp <- dat$temp_trawl
+  
   # fit model with or without cross-validation
   if (use_cv) {
     m <- sdmTMB_cv(
