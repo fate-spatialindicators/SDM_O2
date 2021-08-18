@@ -123,9 +123,10 @@ AICmat <-
   matrix(NA, nrow = length(m_df), ncol = 1) # set up array for output
 rownames(AICmat) <- rownames(dAIC) <- m_df
 
+tweedie_dens <- rep(NA_real_, length(m_df))
 
 # fit models and save files to output/wc folder
-for (i in 1:length(m_df)) {
+for (i in seq(1, length(m_df))) {
   print(paste0("model # ", i, " of ", length(m_df)))
   formula = paste0("cpue_kg_km2 ~ -1 +", m_df[i])
   if (no_depth)
@@ -137,7 +138,7 @@ for (i in 1:length(m_df)) {
       fixed = T
     )
   # fit model with or without cross-validation
-  if (use_cv == TRUE) {
+  if (use_cv) {
     m <- sdmTMB_cv(
       formula = as.formula(formula),
       data = dat,
@@ -149,8 +150,9 @@ for (i in 1:length(m_df)) {
       spatial_only = TRUE,
       silent = TRUE
     )
+    dir.create("output/wc/cv/", showWarnings = FALSE)
     saveRDS(m, file = paste0("output/wc/cv/model_", i, "_", spc, "_cv.rds"))
-    tweedie_dens[i] = sum(m$fold_loglik)
+    tweedie_dens[i] <- sum(m$fold_loglik)
     
   } else {
     m <- try(sdmTMB(
