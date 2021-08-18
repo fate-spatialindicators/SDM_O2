@@ -155,7 +155,7 @@ for (i in 1:length(m_df)) {
       formula = as.formula(formula),
       data = dat,
       time = NULL,
-      reml = TRUE,
+      reml = FALSE,
       spde = spde,
       family = tweedie(link = "log"),
       anisotropy = TRUE,
