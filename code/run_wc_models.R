@@ -140,12 +140,14 @@ for (i in seq(1, length(m_df))) {
   
   # fit model with or without cross-validation
   if (use_cv) {
+    set.seed(192839)
+    dat$fold_ids <- sample(seq_len(6), nrow(dat), replace = TRUE)
     m <- sdmTMB_cv(
       formula = as.formula(formula),
       data = dat,
       time = NULL,
       spde = spde,
-      k_folds = 5,
+      fold_ids = dat$fold_ids,
       family = tweedie(link = "log"),
       anisotropy = TRUE,
       spatial_only = TRUE,
@@ -192,6 +194,8 @@ if (use_AIC) {
     AICmat[i, 1] <- AIC(m)
   }
 }
+
+if (use_cv) saveRDS(tweedie_dens, file = "output/wc/cv/tweedie_dens.rds")
 
 # calculate and print out delta AIC table
 
