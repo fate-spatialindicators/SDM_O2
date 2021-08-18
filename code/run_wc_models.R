@@ -30,6 +30,8 @@ use_cv = FALSE # specify whether to do cross validation or not
 use_AIC = TRUE # specify whether to use AIC
 use_jscope <- F # specify whether to only use J-SCOPE based estimates.  Overrides compare_sources and fit.model
 
+# parallel cross-validation:
+if (use_cv) future::plan(future::multisession)
 
 # load and scale data -----------------------------------------------------
 if (!use_jscope) {
