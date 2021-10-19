@@ -69,7 +69,7 @@ if(use_jscope) {
   ylimits = c(4762418, 5366000)
 }
 
-best_model <- readRDS("output/wc/model_8_sablefishp2_p3.rds")
+best_model <- readRDS("output/wc/model_7_sablefishp2_p3.rds")
 pred_po2 <- readRDS("output/wc/pred_po2.rds")
 pred_temp <-readRDS("output/wc/pred_temp.rds")
 
@@ -102,7 +102,7 @@ ggplot(us_coast_proj) + geom_sf() +
   facet_wrap(~year, ncol = 3) +
   scale_x_continuous(breaks = c(-125, -120), limits = xlimits) +
   ylim(ylimits[1], ylimits[2]) +
-  scale_fill_viridis_c(limits = c(-1.5, 0), oob = scales::squish, name = "log Effect Size") +
+  scale_fill_viridis_c(limits = c(-1.0, 0), oob = scales::squish, name = "log Effect Size") +
   labs(x = "Longitude", y = "Latitude") +
   theme_bw() +
   theme(panel.grid.major = element_blank()

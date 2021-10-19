@@ -127,3 +127,24 @@ ggplot(us_coast_proj) + geom_sf() +
   theme(legend.text = element_text(size = 12))
 
 ggsave(filename = "plots/mimap.png", height = 9, width = 6.5, units = "in")
+
+
+dat$mi <- back.convert(dat$mi, attr(dat$mi, "scaled:center"), attr(dat$mi, "scaled:scale"))
+ggplot(us_coast_proj) + geom_sf() +
+  geom_point(data = dat, aes(x = X * 1000, y = Y * 1000, col = mi), size = 0.5, alpha = 1.0) +
+  facet_wrap(~year, ncol = 3) +
+  scale_x_continuous(breaks = c(-125, -120), limits = xlimits) +
+  ylim(ylimits[1], ylimits[2]) +
+  scale_colour_viridis_c(limits = c(0, 6), oob = scales::squish, name = "Metaolic Index") +
+  labs(x = "Longitude", y = "Latitude") +
+  theme_bw() +
+  theme(panel.grid.major = element_blank()
+        ,panel.grid.minor = element_blank()
+        ,panel.border = element_blank()
+  ) +
+  theme(axis.line = element_line(color = "black")) +
+  theme(axis.text = element_text(size = 12)) +
+  theme(axis.title= element_text(size = 14)) +
+  theme(legend.text = element_text(size = 12))
+
+ggsave(filename = "plots/mimap_data.png", height = 9, width = 6.5, units = "in")

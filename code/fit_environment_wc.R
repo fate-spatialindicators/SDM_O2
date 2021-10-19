@@ -18,7 +18,7 @@ library(viridis)
 
 wc_grid <- readRDS("survey_data/wc_grid.rds")
 
-dat <- load_data_jscope("sablefish")
+dat <- load_data(spc = "sablefish", constrain_latitude=F, fit.model= F)
 # transform
 dat$log_depth_scaled <- scale(log(dat$depth))
 dat$log_depth_scaled2 <- scale(log(dat$depth) ^ 2)
@@ -41,6 +41,22 @@ temp_model <- sdmTMB(formula = temp ~ -1 + log_depth_scaled + log_depth_scaled2
                      time = "year", spde = c_spde, anisotropy = TRUE,
                      silent = TRUE, spatial_trend = FALSE, spatial_only = FALSE,
                      control = sdmTMBcontrol(step.min = 0.01, step.max = 1))
+temp_model_reduced <- sdmTMB(formula = temp ~ -1 + log_depth_scaled + log_depth_scaled2 
+                             +  as.factor(year) + jday_scaled + jday_scaled2,
+                             data = dat,
+                             spde = c_spde, anisotropy = TRUE,
+                             silent = TRUE, spatial_trend = FALSE, spatial_only = TRUE,
+                             control = sdmTMBcontrol(step.min = 0.01, step.max = 1))
+
+temp_model_noyear <- sdmTMB(formula = temp ~ -1 + log_depth_scaled + log_depth_scaled2 
+                              + jday_scaled + jday_scaled2,
+                             data = dat,
+                             spde = c_spde, anisotropy = TRUE,
+                             silent = TRUE, spatial_trend = FALSE, spatial_only = TRUE,
+                             control = sdmTMBcontrol(step.min = 0.01, step.max = 1))
+
+temp_aic <- c(AIC(temp_model_noyear), AIC(temp_model_reduced), AIC(temp_model))
+temp_daic <- temp_aic - min(temp_aic)
 
 mi_model <-  sdmTMB(formula = mi ~ -1 + log_depth_scaled + log_depth_scaled2 
                     +  as.factor(year) + jday_scaled + jday_scaled2,
@@ -49,6 +65,24 @@ mi_model <-  sdmTMB(formula = mi ~ -1 + log_depth_scaled + log_depth_scaled2
                     silent = TRUE, spatial_trend = FALSE, spatial_only = FALSE,
                     control = sdmTMBcontrol(step.min = 0.01, step.max = 1))
 
+
+mi_model_reduced <-  sdmTMB(formula = mi ~ -1 + log_depth_scaled + log_depth_scaled2 
+                    +  as.factor(year) + jday_scaled + jday_scaled2,
+                    data = dat,
+                    time = "year", spde = c_spde, anisotropy = TRUE,
+                    silent = TRUE, spatial_trend = FALSE, spatial_only = TRUE,
+                    control = sdmTMBcontrol(step.min = 0.01, step.max = 1))
+
+mi_model_noyear <-  sdmTMB(formula = mi ~ -1 + log_depth_scaled + log_depth_scaled2 
+                     + jday_scaled + jday_scaled2,
+                    data = dat,
+                    time = "year", spde = c_spde, anisotropy = TRUE,
+                    silent = TRUE, spatial_trend = FALSE, spatial_only = TRUE,
+                    control = sdmTMBcontrol(step.min = 0.01, step.max = 1))
+
+mi_aic <- c(AIC(mi_model_noyear), AIC(mi_model_reduced), AIC(mi_model))
+mi_daic <- mi_aic - min(mi_aic)
+
 # removed jday_scaled2 because may not have converged
 po2_model <-  sdmTMB(formula = po2 ~ -1 + log_depth_scaled + log_depth_scaled2 
                     +  as.factor(year) + jday_scaled + jday_scaled2,
@@ -56,6 +90,24 @@ po2_model <-  sdmTMB(formula = po2 ~ -1 + log_depth_scaled + log_depth_scaled2
                     time = "year", spde = c_spde, anisotropy = TRUE,
                     silent = TRUE, spatial_trend = FALSE, spatial_only = FALSE,
                     control = sdmTMBcontrol(step.min = 0.01, step.max = 1))
+
+po2_model_reduced <-  sdmTMB(formula = po2 ~ -1 + log_depth_scaled + log_depth_scaled2 
+                     +  as.factor(year) + jday_scaled + jday_scaled2,
+                     data = dat,
+                     time = "year", spde = c_spde, anisotropy = TRUE,
+                     silent = TRUE, spatial_trend = FALSE, spatial_only = TRUE,
+                     control = sdmTMBcontrol(step.min = 0.01, step.max = 1))
+
+po2_model_noyear <-  sdmTMB(formula = po2 ~ -1 + log_depth_scaled + log_depth_scaled2 
+                     + jday_scaled + jday_scaled2,
+                     data = dat,
+                     time = "year", spde = c_spde, anisotropy = TRUE,
+                     silent = TRUE, spatial_trend = FALSE, spatial_only = TRUE,
+                     control = sdmTMBcontrol(step.min = 0.01, step.max = 1))
+po2_aic <- c(AIC(po2_model_noyear), AIC(po2_model_reduced), AIC(po2_model))
+po2_daic <- po2_aic - min(po2_aic)
+
+print(cbind(temp_daic, mi_daic, po2_daic))
 
 # make prediction surfaces of environmental conditions
 

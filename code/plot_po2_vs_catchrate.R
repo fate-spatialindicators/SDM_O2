@@ -19,6 +19,9 @@ use_cv = FALSE # specify whether to do cross validation or not
 use_AIC = TRUE # specify whether to use AIC
 use_jscope <- F # specify whether to only use J-SCOPE based estimates.  Overrides compare_sources and fit.model
 dat <- load_data(fit.model, spc, constrain_latitude)
+# only look at intermediate sized sablefish, 0.5 - 6 kg)
+dat$cpue_kg_km2 <- dat$cpue_kg_km2 * (dat$p2 + dat$p3) 
+
 
 kelvin = 273.15
 kb <- boltz <- 0.000086173324
@@ -43,8 +46,6 @@ dat$logbnpo2 <- log(avebn * dat$po2)
 
 # only look at depths that are commonly inhabited by sablefish
 dat <- dplyr::filter(dat, depth >=100)
-# only look at intermediate sized sablefish, 0.5 - 6 kg)
-dat$cpue_kg_km2 <- dat$cpue_kg_km2 * (dat$p2 + dat$p3) 
 
 pointsize <- 0.5
 alpha2use <- 0.7
@@ -87,7 +88,7 @@ miplot <- ggplot() +
 templot <- ggplot() + 
   geom_point(data = dat, aes(x = temp, y = -(depth), col = log(cpue_kg_km2)), alpha = alpha2use, size = pointsize,show.legend= FALSE) +
   scale_x_continuous() +
-  scale_colour_viridis(limits = zlims,oob = scales::squish,name = bquote('log(biomass)'~(kg~km^2))) +
+  scale_colour_viridis(limits = zlims,oob = scales::squish, name = bquote('log(biomass)'~(kg~km^2))) +
   labs(x = "Temperature", y = "") +
   theme_bw() +
   theme(panel.grid.major = element_blank()
@@ -100,7 +101,7 @@ templot <- ggplot() +
   theme(legend.text = element_text(size = 12))
 
 
-multipanel <- gridExtra::grid.arrange(po2plot, miplot, templot, nrow = 1, ncol = 3)
+multipanel <- gridExtra::grid.arrange(templot, po2plot, miplot, nrow = 1, ncol = 3)
 
 ggsave("plots/env_vscatch.png", multipanel, width = 8, height = 3.5, units = "in", device = "png")
 

@@ -13,7 +13,7 @@ spc <- species.2.plot <- "sablefish"
 #### Get the data all set up as needed:
 
                     
-dat <- load_data(fit.model, spc, constrain_latitude)
+dat <- load_data(fit.model = F, spc, constrain_latitude = F)
 
 # scale variables - used later to unscale!
 dat$temp <- scale(dat$temp)
@@ -23,10 +23,10 @@ dat$log_depth_scaled2 <- dat$log_depth_scaled ^2
 dat$mi <- scale(dat$mi)
 
 # load best model
-m_po2 <- readRDS("output/wc/model_8_sablefishp2_p3.rds") #
+m_po2 <- readRDS("output/wc/model_7_sablefish.rds") #
 
-
-
+tidy(m_po2,"ran_pars",conf.int = TRUE)
+tidy(m_po2,"fixed", conf.int = TRUE)
 
 nd_temp <- data.frame(temp = seq(min(dat$temp), max(dat$temp), length.out = 100),
                       log_depth_scaled = 0,
@@ -63,7 +63,7 @@ plot_temp <- ggplot(p_temp, aes(back.convert(temp, attr(dat$temp, "scaled:center
                                    ymin = exp(est - z * est_se), ymax = exp(est + z * est_se))) +
                       geom_line() + geom_ribbon(alpha = 0.4) + 
   labs(x = "Temperature (°C)", y = NULL) +
-  scale_y_continuous(limits = c(0, 1520), expand = expansion(mult = c(0, 0.0))) +
+  scale_y_continuous(limits = c(0, 1650), expand = expansion(mult = c(0, 0.0))) +
   theme_bw() +
   theme(
     plot.background = element_blank()
@@ -72,14 +72,14 @@ plot_temp <- ggplot(p_temp, aes(back.convert(temp, attr(dat$temp, "scaled:center
     ,panel.border = element_blank()
   ) +
   theme(axis.line = element_line(color = "black")) +
-  theme(axis.text = element_text(size = 12)) +
-  theme(axis.title= element_text(size = 14)) 
+  theme(axis.text = element_text(size = 8, color = "black")) +
+  theme(axis.title= element_text(size = 10)) 
 
 plot_o2 <- ggplot(p_o2, aes(back.convert(po2, attr(dat$po2, "scaled:center"), attr(dat$po2, "scaled:scale")), exp(est), 
-                 ymin = exp(est - z * est_se), ymax = exp(est + z * est_se))) +
+                 ymin = exp(est - z *est_se), ymax = exp(est + z * est_se))) +
   geom_line() + geom_ribbon(alpha = 0.4) + 
-  scale_y_continuous(limits = c(0, 1520), expand = expansion(mult = c(0, 0.0))) +
-  labs(x = "Partial Pressure of Oxygen", y = bquote('Population Density'~(kg~km^-2))) + 
+  scale_y_continuous(limits = c(0, 800), expand = expansion(mult = c(0, 0.0))) +
+  labs(x = "Partial Pressure of Oxygen (atm)", y = bquote('Population Density'~(kg~km^-2))) + 
   theme_bw() +
   theme(
     plot.background = element_blank()
@@ -88,13 +88,13 @@ plot_o2 <- ggplot(p_o2, aes(back.convert(po2, attr(dat$po2, "scaled:center"), at
     ,panel.border = element_blank()
   ) +
   theme(axis.line = element_line(color = "black")) +
-  theme(axis.text = element_text(size = 12)) +
-  theme(axis.title= element_text(size = 14)) 
+  theme(axis.text = element_text(size = 8, color = "black")) +
+  theme(axis.title= element_text(size = 10)) 
 
 plot_depth <- ggplot(p_depth, aes(exp(back.convert(log_depth_scaled, attr(dat$log_depth_scaled, "scaled:center"), attr(dat$log_depth_scaled, "scaled:scale"))), exp(est), 
                     ymin = exp(est - z * est_se), ymax = exp(est + z * est_se))) +
   geom_line() + geom_ribbon(alpha = 0.4) + 
-  scale_y_continuous(limits = c(0, 1520), expand = expansion(mult = c(0, 0.0))) +
+  scale_y_continuous(limits = c(0, 800), expand = expansion(mult = c(0, 0.0))) +
   labs(x = "Bottom Depth (m)", y = NULL) +
 theme_bw() +
   theme(
@@ -104,9 +104,9 @@ theme_bw() +
     ,panel.border = element_blank()
   ) +
   theme(axis.line = element_line(color = "black")) +
-  theme(axis.text = element_text(size = 12)) +
-  theme(axis.title= element_text(size = 14)) 
+  theme(axis.text = element_text(size = 8, color = "black")) +
+  theme(axis.title= element_text(size = 10)) 
 
  
-multipanel <- gridExtra::grid.arrange(plot_o2, plot_temp, plot_depth, nrow = 1, ncol = 3)
-ggsave("plots/marginal_effects.png", multipanel, width = 8, height = 3, units = "in", device = "png")
+multipanel <- gridExtra::grid.arrange(plot_o2, plot_depth, nrow = 1, ncol = 2)
+ggsave("plots/marginal_effects.png", multipanel, width = 6, height = 3, units = "in", device = "png")

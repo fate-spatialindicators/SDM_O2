@@ -25,6 +25,7 @@ library(sf)
 library(gridExtra)
 library(egg)
 library(lme4)
+library(future)
 
 
 
@@ -35,13 +36,18 @@ years <- 2010:2015 # designate years to use, must be 2010:2015 if using trawl-ba
 constrain_latitude <- F # do you want to constraint trawl data N of 43 degrees latitude
 compare_sources <- F # do you want to run models comparing trawl and J-SCOPE covariates?
 no_depth <- FALSE # Do you want to run models w/out a depth effect?
-use_cv = FALSE # specify whether to do cross validation or not
+use_cv = F # specify whether to do cross validation or not
 use_AIC = TRUE # specify whether to use AIC
 use_jscope <- F # specify whether to only use J-SCOPE based estimates.  Overrides compare_sources and fit.model
 sizeclass <- "p2_p3"
+k_folds <- 5
+constrain_depth <- F
 
 # load and scale data -----------------------------------------------------
   dat <- load_data(fit.model= F, spc, constrain_latitude = F)
+# to test, remove depths > 800 m
+if (constrain_depth) dat <- dplyr::filter(dat, depth>=800)
+
     dat$temp <- (scale(dat$temp))
     dat$mi <- (scale(dat$mi))
     dat$po2 <- (scale(dat$po2))
@@ -55,7 +61,7 @@ sizeclass <- "p2_p3"
   dat$cpue_kg_km2 <- dat$cpue_kg_km2 * (dat$p2+dat$p3)
   
 # make year a factor
-dat$year <- as.factor(dat$year)
+dat$year <- dat$year
 
 map_data <- rnaturalearth::ne_countries(scale = "large", returnclass = "sf")
 
@@ -82,19 +88,18 @@ ggplot(us_coast_proj) + geom_sf() +
   facet_wrap(~year, ncol = 3) +
   scale_x_continuous(breaks = c(-125, -120), limits = xlimits) +
   ylim(ylimits[1], ylimits[2]) + 
-  scale_colour_viridis(limits = c(0, 8),oob = scales::squish,name = bquote('log Catch Rate'~(kg~km^-2))) +
+  scale_colour_viridis(limits = c(4, 8),oob = scales::squish,name = bquote('log Catch Rate'~(kg~km^-2))) +
   labs(x = "Longitude", y = "Latitude") +
   theme_bw() +
-  theme(
-    plot.background = element_blank()
-    ,panel.grid.major = element_blank()
-    ,panel.grid.minor = element_blank()
-    ,panel.border = element_blank()
+  theme(panel.grid.major = element_blank()
+        ,panel.grid.minor = element_blank()
+        ,panel.border = element_blank()
   ) +
   theme(axis.line = element_line(color = "black")) +
-  theme(axis.text = element_text(size = 12)) +
-  theme(axis.title= element_text(size = 14))
-
+  theme(axis.text = element_text(size = 12, color = "black")) +
+  theme(axis.title= element_text(size = 14)) +
+  theme(legend.text = element_text(size = 12))
+   
 ggsave(filename = "plots/sablemap.png", height = 9, width = 6.5, units = "in")
 # Run alternative models  -----------------------------------------------------
 spde <-
@@ -108,34 +113,68 @@ if (compare_sources & !use_jscope)
 if (!compare_sources | use_jscope)
   m_df <- get_models()
 
-AICmat <-
-  dAIC <-
-  matrix(NA, nrow = length(m_df), ncol = 1) # set up array for output
-rownames(AICmat) <- rownames(dAIC) <- m_df
 
 
 # fit models and save files to output/wc folder
-for (i in 1:length(m_df)) {
+if(use_cv) {
+for (i in seq(1, length(m_df))) {
+  set.seed(192839)
+  dat$fold_ids <- sample(seq_len(k_folds), nrow(dat), replace = TRUE)
+  future::plan(future::multisession)
   print(paste0("model # ", i, " of ", length(m_df)))
   formula = paste0("cpue_kg_km2 ~ -1 +", m_df[i])
-    m <- try(sdmTMB(
+    m <- try(sdmTMB_cv(
       formula = as.formula(formula),
       data = dat,
       time = NULL,
-      reml = TRUE,
+      reml = F,
+      fold_ids = dat$fold_ids,
       spde = spde,
       family = tweedie(link = "log"),
       anisotropy = TRUE,
-      spatial_only = TRUE
+      spatial_only = TRUE,
+      control = sdmTMBcontrol(nlminb_loops = 2)
     ),
-    silent = TRUE)
+    silent = FALSE)
     
     if (class(m) != "try-error") {
-        saveRDS(m, file = paste0("output/wc/model_", i, "_", spc,sizeclass,".rds"))
+        saveRDS(m, file = paste0("output/wc/cv/model_", i, "_", spc,sizeclass,".rds"))
     }
 }
+}
 
+if(use_AIC) {
+  for (i in seq(1, length(m_df))) {
+  print(paste0("model # ", i, " of ", length(m_df)))
+  formula = paste0("cpue_kg_km2 ~ -1 +", m_df[i])
+  m <- try(sdmTMB(
+    formula = as.formula(formula),
+    data = dat,
+    time = NULL,
+    reml = F,
+    spde = spde,
+    family = tweedie(link = "log"),
+    anisotropy = TRUE,
+    spatial_only = TRUE,
+    control = sdmTMBcontrol(nlminb_loops = 2)
+  ),
+  silent = FALSE)
+  
+  if (class(m) != "try-error") {
+    saveRDS(m, file = paste0("output/wc/model_", i, "_", spc,sizeclass,".rds"))
+  }
+  }
+}
+
+  
 # If using AIC, calculate AIC and dAIC ------------------------------------
+
+AICmat <-
+  dAIC <-
+  cvmat <-
+  matrix(NA, nrow = length(m_df), ncol = 1) # set up array for output
+rownames(AICmat) <- rownames(dAIC) <- rownames(cvmat) <- m_df
+
 if (use_AIC) {
   for (i in 1:length(m_df)) {
     
@@ -146,6 +185,18 @@ if (use_AIC) {
   }
 }
 
+if (use_cv) {
+  for (i in 1:length(m_df)) {
+    
+      filename <- paste0("output/wc/cv/model_", i, "_", spc,sizeclass, ".rds")
+    m <- readRDS(filename)
+    cvmat[i, 1] <- sum(m$sum_loglik)
+  }
+}
+
+dcv <- cvmat - max(cvmat[,1])
+dcv[, 1] <- as.numeric(sprintf(dcv, fmt = '%.2f'))
+print(dcv)
 # calculate and print out delta AIC table
 
 dAIC[, 1] <- AICmat[, 1] - min(AICmat[, 1])
@@ -160,3 +211,14 @@ best.index <- which(dAIC==0)
 m <- readRDS(filename)
 summary(m)
 
+# get breakpoint values for pO2 in best model
+bp_par <- m$model$par[length(m$model$par)]
+# backconvert
+bp_par <- back.convert(bp_par, attr(dat$po2, "scaled:center"), attr(dat$po2, "scaled:scale"))
+
+
+# get breakpoint values for MI
+m <- readRDS(file = "output/wc/model_9_sablefishp2_p3.rds")
+bp_par <- m$model$par[length(m$model$par)]
+# backconvert
+bp_par <- back.convert(bp_par, attr(dat$mi, "scaled:center"), attr(dat$mi, "scaled:scale"))

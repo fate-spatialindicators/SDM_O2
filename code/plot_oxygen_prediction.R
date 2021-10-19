@@ -185,3 +185,22 @@ pmap <-ggplot(us_coast_proj) + geom_sf() +
 
 ggsave(filename = "plots/po2map.png", height = 9, width = 6.5, units = "in")
 
+dat$po2 <- back.convert(dat$po2, attr(dat$po2, "scaled:center"), attr(dat$po2, "scaled:scale"))
+ggplot(us_coast_proj) + geom_sf() +
+  geom_point(data = dat, aes(x = X * 1000, y = Y * 1000, col = po2), size = 0.5, alpha = 1.0) +
+  facet_wrap(~year, ncol = 3) +
+  scale_x_continuous(breaks = c(-125, -120), limits = xlimits) +
+  ylim(ylimits[1], ylimits[2]) +
+  scale_colour_viridis_c(limits = c(0, 0.1), oob = scales::squish, name = bquote(pO[2])) +
+  labs(x = "Longitude", y = "Latitude") +
+  theme_bw() +
+  theme(panel.grid.major = element_blank()
+        ,panel.grid.minor = element_blank()
+        ,panel.border = element_blank()
+  ) +
+  theme(axis.line = element_line(color = "black")) +
+  theme(axis.text = element_text(size = 12)) +
+  theme(axis.title= element_text(size = 14)) +
+  theme(legend.text = element_text(size = 12))
+
+ggsave(filename = "plots/po2map_data.png", height = 9, width = 6.5, units = "in")

@@ -21,6 +21,7 @@ library(egg)
 
 
 # Need to load the data to get scaled stuff
+spc <- "sablefish"
 fit.model <- F # do you want to fit SDM to environmental variables and impute missing values?
 years <- 2010:2015 # designate years to use, must be 2010:2015 if using trawl-based data
 constrain_latitude <- F # do you want to constraint trawl data N of 43 degrees latitude
@@ -29,11 +30,10 @@ no_depth <- FALSE # Do you want to run models w/out a depth effect?
 use_cv = FALSE # specify whether to do cross validation or not
 use_AIC = TRUE # specify whether to use AIC
 use_jscope <- F # specify whether to only use J-SCOPE based estimates.  Overrides compare_sources and fit.model
-years.2.plot <- c(2010:2015)
+sizeclass <- "p2_p3"
 
-# load data
-if(!use_jscope) dat <- load_data(spc = "sablefish", constrain_latitude, fit.model)
-if(use_jscope) dat <- load_data_jscope(spc = "sablefish", years = years)
+# load and scale data -----------------------------------------------------
+dat <- load_data(fit.model= F, spc, constrain_latitude = F)
 
 # rescale variables
 mean.depth <- mean(dat$depth)
@@ -49,6 +49,7 @@ dat$Y <- dat$latitude
 dat$year <- as.factor(dat$year)
 dat$mi <- scale(dat$mi)
 dat$year <- as.factor(dat$year)
+dat$cpue_kg_km2 <- dat$cpue_kg_km2 * (dat$p2+dat$p3)
 
 map_data <- rnaturalearth::ne_countries(scale = "large", returnclass = "sf")
 
@@ -69,7 +70,7 @@ if(use_jscope) {
   ylimits = c(4762418, 5366000)
 }
 
-best_model <- readRDS("output/wc/model_8_sablefish.rds")
+best_model <- readRDS("output/wc/model_7_sablefish.rds")
 
 fit_sablefish <- predict(best_model,
                                  newdata = dat,
@@ -83,16 +84,18 @@ ggplot(us_coast_proj) + geom_sf() +
   facet_wrap(~year, ncol = 3) +
   scale_x_continuous(breaks = c(-125, -120), limits = xlimits) +
   ylim(ylimits[1], ylimits[2]) + 
-  scale_colour_viridis(limits = c(-0.75, 0.75),oob = scales::squish,name = "Standardized Residuals") +
+  scale_colour_distiller(type = "div", palette = "RdBu", limits = c(-0.75, 0.75),oob = scales::squish,name = "Standardized Residuals") +
   labs(x = "Longitude", y = "Latitude") +
   theme_bw() +
-  theme(
-    plot.background = element_blank()
-    ,panel.grid.major = element_blank()
-    ,panel.grid.minor = element_blank()
-    ,panel.border = element_blank()
+  theme(panel.grid.major = element_blank()
+        ,panel.grid.minor = element_blank()
+        ,panel.border = element_blank()
   ) +
   theme(axis.line = element_line(color = "black")) +
-  theme(axis.text = element_text(size = 12)) +
-  theme(axis.title= element_text(size = 14))
+  theme(axis.text = element_text(size = 12, color = "black")) +
+  theme(axis.title= element_text(size = 14)) +
+  theme(legend.text = element_text(size = 12))
+
+
+ggsave(filename = "plots/residual_catch.png", height = 9, width = 6.5, units = "in")
 

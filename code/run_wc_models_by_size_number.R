@@ -38,7 +38,7 @@ no_depth <- FALSE # Do you want to run models w/out a depth effect?
 use_cv = FALSE # specify whether to do cross validation or not
 use_AIC = TRUE # specify whether to use AIC
 use_jscope <- F # specify whether to only use J-SCOPE based estimates.  Overrides compare_sources and fit.model
-sizeclass <- "p2_p3"
+sizeclass <- "p3"
 
 # load and scale data -----------------------------------------------------
   dat <- load_data_number(fit.model= F, spc, constrain_latitude = F)
@@ -52,7 +52,7 @@ sizeclass <- "p2_p3"
     dat$jday_scaled2 <- with(dat, jday_scaled ^ 2)
     dat$X <- dat$longitude
     dat$Y <- dat$latitude
-  dat$cpue_no_km2 <- dat$cpue_no_km2 * (dat$p2+dat$p3)
+  dat$cpue_no_km2 <- dat$cpue_no_km2 * (dat$p3n)
   
 # make year a factor
 dat$year <- as.factor(dat$year)
@@ -82,7 +82,7 @@ ggplot(us_coast_proj) + geom_sf() +
   facet_wrap(~year, ncol = 3) +
   scale_x_continuous(breaks = c(-125, -120), limits = xlimits) +
   ylim(ylimits[1], ylimits[2]) + 
-  scale_colour_viridis(limits = c(0, 7),oob = scales::squish,name = bquote('log Catch Rate'~(n~km^-2))) +
+  scale_colour_viridis(limits = c(3, 7),oob = scales::squish,name = bquote('log Catch Rate'~(n~km^-2))) +
   labs(x = "Longitude", y = "Latitude") +
   theme_bw() +
   theme(
@@ -95,7 +95,7 @@ ggplot(us_coast_proj) + geom_sf() +
   theme(axis.text = element_text(size = 12)) +
   theme(axis.title= element_text(size = 14))
 
-ggsave(filename = "plots/sablemap.png", height = 9, width = 6.5, units = "in")
+ggsave(filename = "plots/sablemap_number.png", height = 9, width = 6.5, units = "in")
 # Run alternative models  -----------------------------------------------------
 spde <-
   make_mesh(data = dat,

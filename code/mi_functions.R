@@ -328,13 +328,13 @@ load_data_nemuro <- function(fit.model= F, spc, constrain_latitude = F) {
 
 load_data_number <- function(fit.model= F, spc, constrain_latitude = F) {
   dat <- readRDS("survey_data/joined_nwfsc_data.rds")
-  dat_by_size <- readRDS("data/survey_data/sablefish_size_dist_number.rds")
+  dat_by_size <- readRDS("data/survey_data/sablefish_size_dist.rds")
   dat = dplyr::filter(dat, species == spc, year%in%seq(2010,2015))
   dat <- left_join(dat, dat_by_size, by = "trawl_id")
   # remove tows where there was positive catch but no length measurements
   dat <- dplyr::filter(dat, !is.na(p1))
   # analyze sablefish for years and hauls with adequate oxygen and temperature data, within range of occurrence
-  
+  dat$cpue_no_km2 <- with(dat,total_catch_numbers / (0.01 * area_swept_ha))
   if (constrain_latitude) dat <- dplyr::filter(dat, latitude_dd >=43)
   
   # get julian day
@@ -405,7 +405,7 @@ load_data_number <- function(fit.model= F, spc, constrain_latitude = F) {
   # prepare data and models -------------------------------------------------
   
   dat <- dplyr::select(dat, trawl_id, species, year, longitude_dd, latitude_dd, cpue_no_km2,
-                       o2, temp, depth, mi, po2, julian_day, pass, p1, p2, p3, p4)
+                       o2, temp, depth, mi, po2, julian_day, pass, p1n, p2n, p3n, p4n)
   
   
   # UTM transformation

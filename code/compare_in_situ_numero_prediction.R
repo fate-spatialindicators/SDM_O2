@@ -101,8 +101,8 @@ temp_compare <- ggplot(alldat) +
   geom_abline(intercept = 0, slope = 1)
   
 
-grid.arrange(tempmap, temp_compare, ncol = 2)
-ggsave("plots/compare_temperature.png")
+mapandcompare <-grid.arrange(tempmap, temp_compare, ncol = 2)
+ggsave("plots/compare_temperature.png", mapandcompare, width = 8, height = 6)
 
 
 po2map <-ggplot(us_coast_proj) + geom_sf() +
@@ -137,8 +137,9 @@ po2_compare <- ggplot(alldat) +
   geom_abline(intercept = 0, slope = 1)
 
 
-grid.arrange(po2map, po2_compare, ncol = 2)
-ggsave("plots/compare_po2.png")
+mapandcompare <- grid.arrange(po2map, po2_compare, ncol = 2)
+ggsave("plots/compare_po2.png", mapandcompare, width = 8, height = 6)
+
 mimap <-ggplot(us_coast_proj) + geom_sf() +
   geom_point(data = alldat, aes(x = longitude.x * 1000, y = latitude.x * 1000, col = delta_mi)) +
   scale_x_continuous(breaks = c(-125, -120), limits = xlimits) +
@@ -171,5 +172,5 @@ mi_compare <- ggplot(alldat) +
   geom_abline(intercept = 0, slope = 1)
 
 
-grid.arrange(mimap, mi_compare, ncol = 2)
-ggsave("plots/compare_mi.png")
+mapandcompare <- grid.arrange(mimap, mi_compare, ncol = 2)
+ggsave("plots/compare_mi.png", mapandcompare, width = 8, height = 6)

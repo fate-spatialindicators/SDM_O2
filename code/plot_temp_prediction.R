@@ -118,3 +118,24 @@ ggplot(us_coast_proj) + geom_sf() +
   theme(legend.text = element_text(size = 12))
 
 ggsave(filename = "plots/tempmap.png", height = 9, width = 6.5, units = "in")
+
+# plot using data only
+dat$temp <- back.convert(dat$temp, attr(dat$temp, "scaled:center"), attr(dat$temp, "scaled:scale"))
+ggplot(us_coast_proj) + geom_sf() +
+  geom_point(data = dat, aes(x = X * 1000, y = Y * 1000, col = temp), size = 0.5, alpha = 1.0) +
+  facet_wrap(~year, ncol = 3) +
+  scale_x_continuous(breaks = c(-125, -120), limits = xlimits) +
+  ylim(ylimits[1], ylimits[2]) +
+  scale_colour_viridis_c(limits = c(3, 11), oob = scales::squish, name = "Temperature (C)") +
+  labs(x = "Longitude", y = "Latitude") +
+  theme_bw() +
+  theme(panel.grid.major = element_blank()
+        ,panel.grid.minor = element_blank()
+        ,panel.border = element_blank()
+  ) +
+  theme(axis.line = element_line(color = "black")) +
+  theme(axis.text = element_text(size = 12)) +
+  theme(axis.title= element_text(size = 14)) +
+  theme(legend.text = element_text(size = 12))
+
+ggsave(filename = "plots/tempmap_data.png", height = 9, width = 6.5, units = "in")
