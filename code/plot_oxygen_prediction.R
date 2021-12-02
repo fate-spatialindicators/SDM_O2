@@ -1,5 +1,5 @@
 rm(list = ls())
-#devtools::install_github("pbs-assess/sdmTMB")
+devtools::install_github("pbs-assess/sdmTMB")
 source("code/mi_functions.R")
 library(sdmTMB)
 library(raster)
@@ -29,7 +29,7 @@ no_depth <- FALSE # Do you want to run models w/out a depth effect?
 use_cv = FALSE # specify whether to do cross validation or not
 use_AIC = TRUE # specify whether to use AIC
 use_jscope <- F # specify whether to only use J-SCOPE based estimates.  Overrides compare_sources and fit.model
-fit_new_po2_model <- F # do you want to re-fit the spatio-temporal model of oxgyen?
+fit_new_po2_model <- T # do you want to re-fit the spatio-temporal model of oxgyen?
 years.2.plot <- c(2010:2015)
 
 # load data

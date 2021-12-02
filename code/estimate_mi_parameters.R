@@ -4,6 +4,7 @@ library(gsw)
 library(dplyr)
 library(rMR)
 library(lme4)
+library(RColorBrewer)
 
 library(rMR)
 kb <-  8.617333262145E-5
@@ -40,13 +41,14 @@ Eo <- - fixef(fit)[2]
 n <- - fixef(fit)[3]
 
 spc.effects <- coef(fit)
-  
+
+
 species.names <- c("Atlantic cod", "Common eelpout", "Atlantic silverside", "N. swellfish", "Sablefish", "Sharpsnout sea bream", "Winter flounder")
 all.dat$bnpo2 <- all.dat$b^n * all.dat$po2
 
 ggplot(data = all.dat, aes(x = inv.temp, y=log(bnpo2), col = spc)) + 
   geom_point(size = 3) +
-  scale_color_viridis_d(option = "plasma", begin = 0, end = 0.99, name = "",labels = species.names) +
+  scale_color_brewer(palette = "Accent",name = "", labels = species.names) +
   labs(x = bquote("Inverse Temperature"~(k[b]~T)^-1), y = bquote('log'~(B^n~pO[2]))) +
 theme_bw() +
   theme(panel.grid.major = element_blank()

@@ -95,14 +95,14 @@ predict_sablefish_highpo2 <-predict(best_model,
                                     newdata = df_highpo2,
                                     return_tmb_object = F)
 delta_predict <- predict_sablefish
-delta_predict$delta <- ((predict_sablefish$est)) - ((predict_sablefish_highpo2$est))
+delta_predict$delta <- exp(predict_sablefish$est-predict_sablefish_highpo2$est)
 
 ggplot(us_coast_proj) + geom_sf() +
   geom_raster(data = delta_predict, aes(x = X * 1000, y = Y * 1000, fill = delta)) +
   facet_wrap(~year, ncol = 3) +
   scale_x_continuous(breaks = c(-125, -120), limits = xlimits) +
   ylim(ylimits[1], ylimits[2]) +
-  scale_fill_viridis_c(limits = c(-1.0, 0), oob = scales::squish, name = "log Effect Size") +
+  scale_fill_viridis_c(limits = c(0.4,1.0), oob = scales::squish, name = "Relative Density", trans = "log") +
   labs(x = "Longitude", y = "Latitude") +
   theme_bw() +
   theme(panel.grid.major = element_blank()

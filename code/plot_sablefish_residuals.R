@@ -14,7 +14,7 @@ require(rnaturalearthdata)
 require(rnaturalearthhires)
 require(ggplot2)
 library(viridis)
-
+library(tweedie)
 library(gridExtra)
 library(egg)
 
@@ -70,21 +70,32 @@ if(use_jscope) {
   ylimits = c(4762418, 5366000)
 }
 
-best_model <- readRDS("output/wc/model_7_sablefish.rds")
+best_model <- readRDS("output/wc/model_7_sablefishp2_p3.rds")
 
 fit_sablefish <- predict(best_model,
                                  newdata = dat,
                                  return_tmb_object = F)
-fit_sablefish$residuals <- dat$cpue_kg_km2 - exp(fit_sablefish$est)
-fit_sablefish$residuals <- fit_sablefish$residuals / sd(fit_sablefish$residuals)
+
+# extract tweedie parameters
+phi_index <- which(names(best_model$model$par) == "ln_phi")
+theta_index <- which(names(best_model$model$par) == "thetaf")
+
+phi <- exp(best_model$model$par[phi_index])
+theta <- best_model$model$par[theta_index]
+power <- 1 + exp(theta) / (1 + exp(theta))
+
+# get quantiles of residuals
+observed_quantiles <- ptweedie(dat$cpue_kg_km2, mu = exp(fit_sablefish$est), phi = phi, power = power)
+fit_sablefish$quantile_residual <- qnorm(observed_quantiles, mean = 0, sd = 1)
+
 
 
 ggplot(us_coast_proj) + geom_sf() + 
-  geom_point(data = fit_sablefish, aes(x = X * 1000, y = Y * 1000, col = residuals), alpha = 0.6, size = 0.5) +
+  geom_point(data = fit_sablefish, aes(x = X * 1000, y = Y * 1000, col = quantile_residual), alpha = 0.6, size = 0.5) +
   facet_wrap(~year, ncol = 3) +
   scale_x_continuous(breaks = c(-125, -120), limits = xlimits) +
   ylim(ylimits[1], ylimits[2]) + 
-  scale_colour_distiller(type = "div", palette = "RdBu", limits = c(-0.75, 0.75),oob = scales::squish,name = "Standardized Residuals") +
+  scale_colour_distiller(type = "div", palette = "RdBu", limits = c(-2.0, 2.00),oob = scales::squish,name = "Quantile Residuals") +
   labs(x = "Longitude", y = "Latitude") +
   theme_bw() +
   theme(panel.grid.major = element_blank()

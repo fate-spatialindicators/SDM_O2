@@ -29,13 +29,8 @@ ln_yhat <- predict(m_po2, dat)
 dat$est <- exp(ln_yhat$est)
 
 
-n.data <- nrow(dat)
-n.sims <- 1000
-sim.output <- matrix(NA, nrow = n.data, ncol = n.sims)
 
-for (i in 1:n.sims) sim.output[,i] <- rtweedie(n.data, mu = dat$est, phi = phi, power = power)
-observed_quantiles <- rep(NA, times = n.data)
-for (i in 1:n.data) observed_quantiles[i] <- length(which(sim.output[i,]<=dat$cpue_kg_km2[i])) / n.sims
+observed_quantiles <- ptweedie(dat$cpue_kg_km2, mu = dat$est, phi = phi, power = power)
 
 # make qq plot
 png(filename = "plots/qqplot.png", width = 6, height = 5, units = "in", res = 150)

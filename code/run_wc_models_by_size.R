@@ -41,12 +41,12 @@ use_AIC = TRUE # specify whether to use AIC
 use_jscope <- F # specify whether to only use J-SCOPE based estimates.  Overrides compare_sources and fit.model
 sizeclass <- "p2_p3"
 k_folds <- 5
-constrain_depth <- F
+constrain_depth <- F  # here you can choose to only look at depths within a certain range. 
 
 # load and scale data -----------------------------------------------------
   dat <- load_data(fit.model= F, spc, constrain_latitude = F)
 # to test, remove depths > 800 m
-if (constrain_depth) dat <- dplyr::filter(dat, depth>=800)
+if (constrain_depth) dat <- dplyr::filter(dat, depth>=150)
 
     dat$temp <- (scale(dat$temp))
     dat$mi <- (scale(dat$mi))
@@ -61,7 +61,7 @@ if (constrain_depth) dat <- dplyr::filter(dat, depth>=800)
   dat$cpue_kg_km2 <- dat$cpue_kg_km2 * (dat$p2+dat$p3)
   
 # make year a factor
-dat$year <- dat$year
+dat$year <- as.factor(dat$year)
 
 map_data <- rnaturalearth::ne_countries(scale = "large", returnclass = "sf")
 

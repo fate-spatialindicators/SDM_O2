@@ -16,7 +16,8 @@ library(viridis)
 
 # load and scale data -----------------------------------------------------
 
-wc_grid <- readRDS("survey_data/wc_grid.rds")
+wc_grid <- readRDS("data/wc_grid.rds")
+
 
 dat <- load_data(spc = "sablefish", constrain_latitude=F, fit.model= F)
 # transform
@@ -43,14 +44,14 @@ temp_model <- sdmTMB(formula = temp ~ -1 + log_depth_scaled + log_depth_scaled2
                      control = sdmTMBcontrol(step.min = 0.01, step.max = 1))
 temp_model_reduced <- sdmTMB(formula = temp ~ -1 + log_depth_scaled + log_depth_scaled2 
                              +  as.factor(year) + jday_scaled + jday_scaled2,
-                             data = dat,
+                             data = dat, reml = T,
                              spde = c_spde, anisotropy = TRUE,
                              silent = TRUE, spatial_trend = FALSE, spatial_only = TRUE,
                              control = sdmTMBcontrol(step.min = 0.01, step.max = 1))
 
 temp_model_noyear <- sdmTMB(formula = temp ~ -1 + log_depth_scaled + log_depth_scaled2 
                               + jday_scaled + jday_scaled2,
-                             data = dat,
+                             data = dat, reml = T,
                              spde = c_spde, anisotropy = TRUE,
                              silent = TRUE, spatial_trend = FALSE, spatial_only = TRUE,
                              control = sdmTMBcontrol(step.min = 0.01, step.max = 1))
@@ -60,7 +61,7 @@ temp_daic <- temp_aic - min(temp_aic)
 
 mi_model <-  sdmTMB(formula = mi ~ -1 + log_depth_scaled + log_depth_scaled2 
                     +  as.factor(year) + jday_scaled + jday_scaled2,
-                    data = dat,
+                    data = dat, reml = T,
                     time = "year", spde = c_spde, anisotropy = TRUE,
                     silent = TRUE, spatial_trend = FALSE, spatial_only = FALSE,
                     control = sdmTMBcontrol(step.min = 0.01, step.max = 1))
@@ -68,14 +69,14 @@ mi_model <-  sdmTMB(formula = mi ~ -1 + log_depth_scaled + log_depth_scaled2
 
 mi_model_reduced <-  sdmTMB(formula = mi ~ -1 + log_depth_scaled + log_depth_scaled2 
                     +  as.factor(year) + jday_scaled + jday_scaled2,
-                    data = dat,
+                    data = dat, reml = T,
                     time = "year", spde = c_spde, anisotropy = TRUE,
                     silent = TRUE, spatial_trend = FALSE, spatial_only = TRUE,
                     control = sdmTMBcontrol(step.min = 0.01, step.max = 1))
 
 mi_model_noyear <-  sdmTMB(formula = mi ~ -1 + log_depth_scaled + log_depth_scaled2 
                      + jday_scaled + jday_scaled2,
-                    data = dat,
+                    data = dat, reml = T,
                     time = "year", spde = c_spde, anisotropy = TRUE,
                     silent = TRUE, spatial_trend = FALSE, spatial_only = TRUE,
                     control = sdmTMBcontrol(step.min = 0.01, step.max = 1))
@@ -86,21 +87,21 @@ mi_daic <- mi_aic - min(mi_aic)
 # removed jday_scaled2 because may not have converged
 po2_model <-  sdmTMB(formula = po2 ~ -1 + log_depth_scaled + log_depth_scaled2 
                     +  as.factor(year) + jday_scaled + jday_scaled2,
-                    data = dat,
+                    data = dat, reml = T,
                     time = "year", spde = c_spde, anisotropy = TRUE,
                     silent = TRUE, spatial_trend = FALSE, spatial_only = FALSE,
                     control = sdmTMBcontrol(step.min = 0.01, step.max = 1))
 
 po2_model_reduced <-  sdmTMB(formula = po2 ~ -1 + log_depth_scaled + log_depth_scaled2 
                      +  as.factor(year) + jday_scaled + jday_scaled2,
-                     data = dat,
+                     data = dat, reml = T,
                      time = "year", spde = c_spde, anisotropy = TRUE,
                      silent = TRUE, spatial_trend = FALSE, spatial_only = TRUE,
                      control = sdmTMBcontrol(step.min = 0.01, step.max = 1))
 
 po2_model_noyear <-  sdmTMB(formula = po2 ~ -1 + log_depth_scaled + log_depth_scaled2 
                      + jday_scaled + jday_scaled2,
-                     data = dat,
+                     data = dat, reml = T,
                      time = "year", spde = c_spde, anisotropy = TRUE,
                      silent = TRUE, spatial_trend = FALSE, spatial_only = TRUE,
                      control = sdmTMBcontrol(step.min = 0.01, step.max = 1))
@@ -121,10 +122,8 @@ df = expand.grid(loc=unique(wc_grid$loc),
 df = left_join(df,wc_grid)
 df$jday_scaled = 0
 df$jday_scaled2 = 0
-df$log_depth_scaled = matrix(df$log_depth_scaled, ncol=1)
-df$log_depth_scaled2 = matrix(df$log_depth_scaled2, ncol=1)
-df$jday_scaled = matrix(df$jday_scaled, ncol=1)
-df$jday_scaled2 = matrix(df$jday_scaled2, ncol=1)
+df$log_depth_scaled = scale(log(-df$depth))
+df$log_depth_scaled2 = df$log_depth_scaled^2
 
 pred_temp = predict(temp_model,
                     newdata=df,
@@ -143,6 +142,7 @@ save(file = "output/wc_temp.Rdata", pred_temp)
 save(file = "output/wc_mi.Rdata", pred_mi)
 save(file = "output/wc_po2.Rdata", pred_po2)
 
+load(file = "output/wc_po2.Rdata")
 
 ## Plot
 # A short function for plotting our predictions:
@@ -153,7 +153,7 @@ plot_map <- function(dat, column = "est") {
     coord_fixed()
 }
 
-plot_map(pred_temp, "est") +
+plot_map(pred_temp, "epsilon_st") +
   scale_fill_viridis_c() +
   ggtitle("Prediction (fixed effects + all random effects)")
 
@@ -161,7 +161,7 @@ plot_map(pred_mi, "est") +
   scale_fill_viridis_c() +
   ggtitle("Metabolic Index")
 
-plot_map(pred_po2, "est") +
+plot_map(pred_po2, "epsilon_st") +
   scale_fill_viridis_c() +
   ggtitle("pO2 ")
 

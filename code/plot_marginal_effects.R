@@ -23,7 +23,7 @@ dat$log_depth_scaled2 <- dat$log_depth_scaled ^2
 dat$mi <- scale(dat$mi)
 
 # load best model
-m_po2 <- readRDS("output/wc/model_7_sablefish.rds") #
+m_po2 <- readRDS("output/wc/model_7_sablefishp2_p3.rds") #
 
 tidy(m_po2,"ran_pars",conf.int = TRUE)
 tidy(m_po2,"fixed", conf.int = TRUE)
@@ -78,7 +78,7 @@ plot_temp <- ggplot(p_temp, aes(back.convert(temp, attr(dat$temp, "scaled:center
 plot_o2 <- ggplot(p_o2, aes(back.convert(po2, attr(dat$po2, "scaled:center"), attr(dat$po2, "scaled:scale")), exp(est), 
                  ymin = exp(est - z *est_se), ymax = exp(est + z * est_se))) +
   geom_line() + geom_ribbon(alpha = 0.4) + 
-  scale_y_continuous(limits = c(0, 800), expand = expansion(mult = c(0, 0.0))) +
+  scale_y_continuous(limits = c(0, 1650), expand = expansion(mult = c(0, 0.0))) +
   labs(x = "Partial Pressure of Oxygen (atm)", y = bquote('Population Density'~(kg~km^-2))) + 
   theme_bw() +
   theme(
@@ -94,7 +94,7 @@ plot_o2 <- ggplot(p_o2, aes(back.convert(po2, attr(dat$po2, "scaled:center"), at
 plot_depth <- ggplot(p_depth, aes(exp(back.convert(log_depth_scaled, attr(dat$log_depth_scaled, "scaled:center"), attr(dat$log_depth_scaled, "scaled:scale"))), exp(est), 
                     ymin = exp(est - z * est_se), ymax = exp(est + z * est_se))) +
   geom_line() + geom_ribbon(alpha = 0.4) + 
-  scale_y_continuous(limits = c(0, 800), expand = expansion(mult = c(0, 0.0))) +
+  scale_y_continuous(limits = c(0, 1650), expand = expansion(mult = c(0, 0.0))) +
   labs(x = "Bottom Depth (m)", y = NULL) +
 theme_bw() +
   theme(
