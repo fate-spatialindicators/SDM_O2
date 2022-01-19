@@ -33,8 +33,8 @@ fit_new_model <- F # do you want to re-fit the spatio-temporal model of oxgyen?
 years.2.plot <- c(2010:2015)
 
 # load data
-if(!use_jscope) dat <- load_data(spc = "sablefish", constrain_latitude, fit.model)
-if(use_jscope) dat <- load_data_jscope(spc = "sablefish", years = years)
+ dat <- load_data(spc = "sablefish", constrain_latitude, fit.model)
+
 
 # rescale variables
 mean.depth <- mean(dat$depth)

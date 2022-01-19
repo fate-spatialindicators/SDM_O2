@@ -32,7 +32,7 @@ dat <- dplyr::filter(dat, !is.na(p1))
 # get julian day
 dat$julian_day <- rep(NA, nrow(dat))
 
-for (i in 1:nrow(dat)) dat$julian_day[i] <- as.POSIXt(dat$date[i], format = "%Y-%b-%d")$yday
+for (i in 1:nrow(dat)) dat$julian_day[i] <- as.POSIXct(dat$date[i], format = "%Y-%b-%d")$yday
 
 dat$date <- as.POSIXct(dat$date, format = "%Y-%b-%d", tz = "")
 dat$datex <- as.Date(dat$date)

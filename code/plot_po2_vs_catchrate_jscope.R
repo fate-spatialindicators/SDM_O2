@@ -18,7 +18,7 @@ no_depth <- FALSE # Do you want to run models w/out a depth effect?
 use_cv = FALSE # specify whether to do cross validation or not
 use_AIC = TRUE # specify whether to use AIC
 use_jscope <- F # specify whether to only use J-SCOPE based estimates.  Overrides compare_sources and fit.model
-dat <- load_data(fit.model, spc, constrain_latitude)
+dat <- load_data_jscope(spc, 2010:2015)
 # only look at intermediate sized sablefish, 0.5 - 6 kg)
 dat$cpue_kg_km2 <- dat$cpue_kg_km2 * (dat$p2 + dat$p3) 
 
@@ -53,9 +53,9 @@ zlims <- c(4,8)
 
 po2plot <- ggplot() + 
   geom_point(data = dat, aes(x = po2, y = -(depth), col = log(cpue_kg_km2)), alpha = alpha2use,size = pointsize) +
-  scale_x_continuous(limits = c(0, 0.15)) +
-  scale_colour_viridis(limits = zlims,oob = scales::squish,name = bquote('log(biomass)'~(kg~km^2))) +
-  labs(x = bquote(pO[2]~"(atm)"), y = "Depth (m)") +
+  scale_colour_viridis(limits = zlims,oob = scales::squish,name = 'log(biomass)') +
+  labs(x = bquote(pO[2]~"(atm)"), y = "Depth (m)") + 
+  xlim(c(0, 0.15)) + 
   #geom_line(data = plot.phi, aes(x = inv_temp, y = logbnpo2), size = 1.5) +
   theme_bw() +
   theme(panel.grid.major = element_blank()
@@ -74,7 +74,7 @@ miplot <- ggplot() +
   geom_point(data = dat, aes(x = mi, y = -(depth), col = log(cpue_kg_km2)), alpha = alpha2use, size = pointsize, show.legend = FALSE) +
   scale_x_continuous(limits = c(0, 9)) +
   scale_colour_viridis(limits = zlims,oob = scales::squish,name = bquote('log(biomass)'~(kg~km^2))) +
-  labs(x = "Metabolic Index", y = "") +
+  labs(x = "Metabolic Index", y = "") + 
   theme_bw() +
   theme(panel.grid.major = element_blank()
         ,panel.grid.minor = element_blank()
@@ -88,7 +88,7 @@ miplot <- ggplot() +
 templot <- ggplot() + 
   geom_point(data = dat, aes(x = temp, y = -(depth), col = log(cpue_kg_km2)), alpha = alpha2use, size = pointsize,show.legend= FALSE) +
   scale_x_continuous(limits = c(0, 12.5)) +
-  scale_colour_viridis(limits = zlims,oob = scales::squish, name = bquote('log(biomass)'~(kg~km^2))) +
+  scale_colour_viridis(limits = zlims,oob = scales::squish, name = 'log(biomass)') +
   labs(x = "Temperature", y = "") +
   theme_bw() +
   theme(panel.grid.major = element_blank()
@@ -103,7 +103,7 @@ templot <- ggplot() +
 
 multipanel <- gridExtra::grid.arrange(templot, po2plot, miplot, nrow = 1, ncol = 3)
 
-ggsave("plots/env_vscatch.png", multipanel, width = 8, height = 3.5, units = "in", device = "png")
+ggsave("plots/env_vscatch_jscope.png", multipanel, width = 8, height = 3.5, units = "in", device = "png")
 
 
 

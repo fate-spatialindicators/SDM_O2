@@ -497,6 +497,9 @@ load_data_jscope <- function(spc, years) {
   # merge with new jscope
   dat <- inner_join(catchdat, hauldat, by = "trawl_id")
   dat <- dplyr::rename(dat, o2 = o2_model, temp = temp_model, sal = sal_model)  
+  dat_by_size <- readRDS("data/survey_data/sablefish_size_dist.rds")
+  dat <- left_join(dat, dat_by_size, by = "trawl_id")
+  
   
   # remove nonsense rows
   dat <- dat %>%
@@ -519,6 +522,10 @@ load_data_jscope <- function(spc, years) {
   
   dat <- dplyr::select(dat, species, trawl_id, year, longitude_dd, latitude_dd, cpue_kg_km2,
                        o2, temp, depth, mi, po2, julian_day, pass)
+  
+  dat_by_size <- readRDS("data/survey_data/sablefish_size_dist.rds")
+  dat = dplyr::filter(dat, species == spc, year%in%seq(2010,2015))
+  dat <- left_join(dat, dat_by_size, by = "trawl_id")
   
   
   # UTM transformation
@@ -644,8 +651,8 @@ get_models_compare <- function() {
  
 
 get_models <- function() {
-  formula <- c("log_depth_scaled + log_depth_scaled2  + as.factor(year)", 
-               "log_depth_scaled + log_depth_scaled2  + as.factor(year) + temp", 
+  formula <- c("log_depth_scaled + log_depth_scaled2  + as.factor(year)",
+               "log_depth_scaled + log_depth_scaled2  + as.factor(year) + temp",
                "log_depth_scaled + log_depth_scaled2  + as.factor(year) + po2",
                "log_depth_scaled + log_depth_scaled2  + as.factor(year) + mi",
                "log_depth_scaled + log_depth_scaled2  + as.factor(year) + temp + po2",
@@ -654,6 +661,17 @@ get_models <- function() {
                "log_depth_scaled + log_depth_scaled2  + as.factor(year) + breakpt(po2) + temp",
                "log_depth_scaled + log_depth_scaled2  + as.factor(year) + breakpt(mi)"
   )
+  
+  # formula <- c("s(log_depth_scaled)+ as.factor(year)", 
+  #              "s(log_depth_scaled) + as.factor(year) + temp", 
+  #              "s(log_depth_scaled) + as.factor(year) + po2",
+  #              "s(log_depth_scaled)  + as.factor(year) + mi",
+  #              "s(log_depth_scaled)  + as.factor(year) + temp + po2",
+  #              "s(log_depth_scaled) + as.factor(year) + temp + po2 + temp * po2",
+  #              "s(log_depth_scaled) + as.factor(year) + breakpt(po2)",
+  #              "s(log_depth_scaled)  + as.factor(year) + breakpt(po2) + temp",
+  #              "s(log_depth_scaled) + as.factor(year) + breakpt(mi)"
+  # )
 }                     
 get_bp_parameters <- function(m) {
   fixed_effects <- m$model$par

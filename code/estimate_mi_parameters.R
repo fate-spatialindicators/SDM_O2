@@ -5,6 +5,8 @@ library(dplyr)
 library(rMR)
 library(lme4)
 library(RColorBrewer)
+library(rstan)
+library(shinystan)
 
 library(rMR)
 kb <-  8.617333262145E-5
@@ -30,9 +32,10 @@ for (i in 1:length(spc.list)) {
 
 all.dat$spc <- as.factor(all.dat$spc)
 # fit global model 
-all.dat$inv.temp <- (1 / kb)  * (1 / (all.dat$temp+273.15))
+tref <- 15
+all.dat$inv.temp <- (1 / kb)  * ( 1 / (all.dat$temp + 273.15) + 1 / (15 + 273.15))
 
-all.dat$inv.temp <- (1 / kb)  * (1 / (all.dat$temp+273.15))
+
 all.dat$spc <- as.factor(all.dat$spc)
 fit <- lmer(log(po2) ~inv.temp + log(b) + (1|spc), data = all.dat)
 
@@ -62,3 +65,63 @@ theme_bw() +
   theme(legend.position = c(0.8, 0.875))
 
 ggsave(filename = "plots/sablefish_mi_parameteris.png", dpi = 300, device = "png", height = 6, width = 6, units = "in")
+
+
+## Repeat using bayesian Model
+spc <- as.numeric(all.dat$spc)
+inv_temp <- all.dat$inv.temp
+logb <- log(all.dat$b)
+y <- log(all.dat$po2)
+N <- length(y)
+n <- length(unique(spc))
+
+stan.model <- "Code/Stan/fit_mi.stan"
+stan.pars <- c("Eo", "n", "Ao", "mu_Ao", 'logsigma_Ao', 'sigma_Ao', 'sigma')
+stan.data <- list(N = N, nspc = n, y = y, logb = logb, inv_temp = inv_temp, spc = spc)
+n_chains <- 3
+
+init.chain <- function(chain_id = 1, n) {
+  list(
+    Eo = rnorm(1, 0, 1),
+    b = rnorm(1,0,1),
+    Ao_raw = rnorm(n, 0, 1),
+    mu_Ao = rnorm(1, 30, 20),
+    logsigma_Ao = rnorm(1, 0, 1),
+    sigma = runif(1, 0.1, 10)
+  )
+}
+
+
+init_ll <- lapply(1:n_chains, function(id)
+  init.chain(chain_id = id, n = n))
+
+
+
+rstan_options(auto_write = TRUE)  # this option stops Stan from re-compiling if not necessary
+options(mc.cores = parallel::detectCores()) # this is nice because it allows each chain to be run in parallel on a separate core of your processor
+
+niters <- 5000 # how long should each chain be.  1000 is probably fine
+
+fit <- stan(
+  file = stan.model,
+  data = stan.data,
+  iter = niters,
+  pars = stan.pars,
+  warmup = floor(niters / 2),
+  chains = n_chains,
+  thin = 5,
+  algorithm = 'NUTS',
+  init = init_ll,
+  verbose = FALSE,
+  control = list(adapt_engaged = TRUE, adapt_delta = 0.9, max_treedepth = 15)
+)
+
+params <- extract(fit)
+
+main.params <- cbind(params$Eo, params$n, params$mu_Ao, params$logsigma_Ao)
+
+param_means <- colMeans(main.params)
+param_sigma <- cov(main.params)
+save(file = "mi_parameters_bayesian.Rdata", fit)
+
+#launch_shinystan(fit)

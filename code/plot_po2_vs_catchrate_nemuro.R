@@ -52,26 +52,26 @@ zlims <- c(4,8)
 
 po2plot <- ggplot() + 
   geom_point(data = dat, aes(x = po2, y = -(depth), col = log(cpue_kg_km2)), alpha = alpha2use,size = pointsize) +
-  scale_x_continuous() +
+  scale_x_continuous(limits = c(0, 0.15)) +
   scale_colour_viridis(limits = zlims,oob = scales::squish,name = bquote('log(biomass)'~(kg~km^2))) +
   labs(x = bquote(pO[2]~"(atm)"), y = "Depth (m)") +
   #geom_line(data = plot.phi, aes(x = inv_temp, y = logbnpo2), size = 1.5) +
   theme_bw() +
   theme(panel.grid.major = element_blank()
-    ,panel.grid.minor = element_blank()
-    ,panel.border = element_blank()
+        ,panel.grid.minor = element_blank()
+        ,panel.border = element_blank()
   ) +
   theme(legend.position = c(0.625, 0.35),
-            legend.direction = "vertical")+
+        legend.direction = "vertical")+
   theme(axis.line = element_line(color = "black")) +
   theme(axis.text = element_text(size = 12, color = "black")) +
   theme(axis.title= element_text(size = 14)) +
   theme(legend.text = element_text(size = 12))
-  
+
 
 miplot <- ggplot() + 
   geom_point(data = dat, aes(x = mi, y = -(depth), col = log(cpue_kg_km2)), alpha = alpha2use, size = pointsize, show.legend = FALSE) +
-  scale_x_continuous() +
+  scale_x_continuous(limits = c(0, 9)) +
   scale_colour_viridis(limits = zlims,oob = scales::squish,name = bquote('log(biomass)'~(kg~km^2))) +
   labs(x = "Metabolic Index", y = "") +
   theme_bw() +
@@ -86,8 +86,8 @@ miplot <- ggplot() +
 
 templot <- ggplot() + 
   geom_point(data = dat, aes(x = temp, y = -(depth), col = log(cpue_kg_km2)), alpha = alpha2use, size = pointsize,show.legend= FALSE) +
-  scale_x_continuous() +
-  scale_colour_viridis(limits = zlims,oob = scales::squish,name = bquote('log(biomass)'~(kg~km^2))) +
+  scale_x_continuous(limits = c(0, 12.5)) +
+  scale_colour_viridis(limits = zlims,oob = scales::squish, name = bquote('log(biomass)'~(kg~km^2))) +
   labs(x = "Temperature", y = "") +
   theme_bw() +
   theme(panel.grid.major = element_blank()
@@ -100,7 +100,7 @@ templot <- ggplot() +
   theme(legend.text = element_text(size = 12))
 
 
-multipanel <- gridExtra::grid.arrange(po2plot, miplot, templot, nrow = 1, ncol = 3)
+multipanel <- gridExtra::grid.arrange(templot, po2plot, miplot, nrow = 1, ncol = 3)
 
 ggsave("plots/env_vscatch_nemuro.png", multipanel, width = 8, height = 3.5, units = "in", device = "png")
 
