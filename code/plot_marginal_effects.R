@@ -79,7 +79,7 @@ plot_o2 <- ggplot(p_o2, aes(back.convert(po2, attr(dat$po2, "scaled:center"), at
                  ymin = exp(est - z *est_se), ymax = exp(est + z * est_se))) +
   geom_line() + geom_ribbon(alpha = 0.4) + 
   scale_y_continuous(limits = c(0, 1650), expand = expansion(mult = c(0, 0.0))) +
-  labs(x = "Partial Pressure of Oxygen (atm)", y = bquote('Population Density'~(kg~km^-2))) + 
+  labs(x = "Partial Pressure of Oxygen (kPa)", y = bquote('Population Density'~(kg~km^-2))) + 
   theme_bw() +
   theme(
     plot.background = element_blank()

@@ -27,12 +27,12 @@ dat = dplyr::filter(dat, species == "sablefish", year%in%seq(2010,2015))
 dat <- left_join(dat, dat_by_size, by = "trawl_id")
 # remove tows where there was positive catch but no length measurements
 dat <- dplyr::filter(dat, !is.na(p1))
-# analyze sablefish for years and hauls with adequate oxygen and temperature data, within range of occurrence
 
 # get julian day
 dat$julian_day <- rep(NA, nrow(dat))
+for (i in 1:nrow(dat)) dat$julian_day[i] <- as.POSIXlt(dat$date[i], format = "%Y-%b-%d")$yday
 
-for (i in 1:nrow(dat)) dat$julian_day[i] <- as.POSIXct(dat$date[i], format = "%Y-%b-%d")$yday
+
 
 dat$date <- as.POSIXct(dat$date, format = "%Y-%b-%d", tz = "")
 dat$datex <- as.Date(dat$date)
@@ -60,9 +60,9 @@ multipanel <- ggplot() +
   facet_wrap(~year, ncol = 3, scales = "free") +
   scale_colour_viridis_c(name = "Latitude") +
   scale_x_date(date_labels = "%b %d") +
-  coord_cartesian(ylim = c(0, 0.159)) + 
+  coord_cartesian(ylim = c(0, 16.0)) + 
   scale_y_continuous(expand = c(0,0))+
-  labs(x = "Date", y = bquote(pO[2]~"(atm)")) +
+  labs(x = "Date", y = bquote(pO[2]~"(kPa)")) +
   theme_bw() +
   theme(panel.grid.major = element_blank()
         ,panel.grid.minor = element_blank()
@@ -78,3 +78,4 @@ multipanel <- ggplot() +
   theme(axis.title= element_text(size = 14)) +
   theme(legend.text = element_text(size = 12))
 ggsave("plots/shelf_po2.png", multipanel, width = 10, height = 5, units = "in", device = "png")
+

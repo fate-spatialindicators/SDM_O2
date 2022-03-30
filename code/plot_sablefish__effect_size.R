@@ -1,3 +1,6 @@
+# Script to plot effect of oxygen on mean sablefish catch rate in space, using model-predicted pO2 (the model is
+# a spatio-temporal model of pO2 fit to observed data)
+
 rm(list = ls())
 #devtools::install_github("pbs-assess/sdmTMB")
 source("code/mi_functions.R")

@@ -114,14 +114,15 @@ calc_po2_mi <- function(dat) {
   dat$sol0 = dat$O2_Sat0/0.209
   dat$sol_Dep = dat$sol0*dat$press
   dat$po2 = dat$o2_umolkg/dat$sol_Dep
+  dat$po2 <- dat$po2 * 101.325 # convert to kPa
   
   # species-specific parameters, estimated by fitting linear model to all data in Deutsch (fish only)
-  Eo <- 0.4525966 
-  Ao <- 5.780791e-06
-  n <- -0.303949 
-  B = 1000 # size in grams, roughly average
-  avgbn <-0.1124206  # this works for the adult class (0.5 - 6 kg).  for the large adult, adjust
-  dat$mi = avgbn*Ao*dat$po2 *exp(Eo/(boltz*(dat$temp+kelvin))) 
+  Eo <- 0.4480175
+  Ao <- 4.4733481
+  n <- -0.2201635
+  avgbn <- 0.112  # this works for the adult class (0.5 - 6 kg).  for the large adult, adjust
+  inv.temp <- (1 / boltz) * ( 1 / (dat$temp + kelvin) - 1 / (15 + kelvin))
+  dat$mi = avgbn*Ao*dat$po2 *exp(Eo * inv.temp)
   return(dat)
 }
 calc_po2_mi_nemuro <- function(dat) {
@@ -661,18 +662,17 @@ get_models <- function() {
                "log_depth_scaled + log_depth_scaled2  + as.factor(year) + breakpt(po2) + temp",
                "log_depth_scaled + log_depth_scaled2  + as.factor(year) + breakpt(mi)"
   )
-  
-  # formula <- c("s(log_depth_scaled)+ as.factor(year)", 
-  #              "s(log_depth_scaled) + as.factor(year) + temp", 
-  #              "s(log_depth_scaled) + as.factor(year) + po2",
-  #              "s(log_depth_scaled)  + as.factor(year) + mi",
-  #              "s(log_depth_scaled)  + as.factor(year) + temp + po2",
-  #              "s(log_depth_scaled) + as.factor(year) + temp + po2 + temp * po2",
-  #              "s(log_depth_scaled) + as.factor(year) + breakpt(po2)",
-  #              "s(log_depth_scaled)  + as.factor(year) + breakpt(po2) + temp",
-  #              "s(log_depth_scaled) + as.factor(year) + breakpt(mi)"
-  # )
-}                     
+}    
+
+get_models_sigmoid <- function() {
+  formula <- c(    "log_depth_scaled + log_depth_scaled2  + as.factor(year) + logistic(po2)",
+                   "log_depth_scaled + log_depth_scaled2  + as.factor(year) + logistic(po2) + temp",
+                   "log_depth_scaled + log_depth_scaled2  + as.factor(year) + logistic(mi)",
+               "log_depth_scaled + log_depth_scaled2  + as.factor(year) + breakpt(po2)",
+               "log_depth_scaled + log_depth_scaled2  + as.factor(year) + breakpt(po2) + temp",
+               "log_depth_scaled + log_depth_scaled2  + as.factor(year) + breakpt(mi)"
+  )
+}
 get_bp_parameters <- function(m) {
   fixed_effects <- m$model$par
   bp_ind <- grep("b_threshold", names(fixed_effects))

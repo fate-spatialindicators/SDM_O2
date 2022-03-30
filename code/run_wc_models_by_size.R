@@ -5,7 +5,7 @@
 
 
 # Install latest version of sdmTMB ----------------------------------------
-#devtools::install_github("pbs-assess/sdmTMB")
+devtools::install_github("pbs-assess/sdmTMB")
 # Initialize with packages and functions ------------------------------------------------
 rm(list = ls())
 source("code/mi_functions.R")
@@ -36,8 +36,6 @@ years <- 2010:2015 # designate years to use, must be 2010:2015 if using trawl-ba
 constrain_latitude <- F # do you want to constraint trawl data N of 43 degrees latitude
 compare_sources <- F # do you want to run models comparing trawl and J-SCOPE covariates?
 no_depth <- FALSE # Do you want to run models w/out a depth effect?
-use_cv = F # specify whether to do cross validation or not
-use_AIC = TRUE # specify whether to use AIC
 use_jscope <- F # specify whether to only use J-SCOPE based estimates.  Overrides compare_sources and fit.model
 sizeclass <- "p2_p3"
 k_folds <- 5
@@ -46,7 +44,7 @@ constrain_depth <- F  # here you can choose to only look at depths within a cert
 # load and scale data -----------------------------------------------------
   dat <- load_data(fit.model= F, spc, constrain_latitude = F)
 # to test, remove depths > 800 m
-if (constrain_depth) dat <- dplyr::filter(dat, depth>=150)
+if (constrain_depth) dat <- dplyr::filter(dat, depth>=800)
 
     dat$temp <- (scale(dat$temp))
     dat$mi <- (scale(dat$mi))
@@ -129,10 +127,10 @@ for (i in seq(1, length(m_df))) {
       time = NULL,
       reml = F,
       fold_ids = dat$fold_ids,
-      spde = spde,
+      mesh = spde,
       family = tweedie(link = "log"),
       anisotropy = TRUE,
-      spatial_only = TRUE,
+      spatiotemporal = "off",
       control = sdmTMBcontrol(nlminb_loops = 2)
     ),
     silent = FALSE)
@@ -152,10 +150,10 @@ if(use_AIC) {
     data = dat,
     time = NULL,
     reml = F,
-    spde = spde,
+    mesh = spde,
     family = tweedie(link = "log"),
     anisotropy = TRUE,
-    spatial_only = TRUE,
+    spatiotemporal = "off",
     control = sdmTMBcontrol(nlminb_loops = 2)
   ),
   silent = FALSE)
@@ -183,6 +181,13 @@ if (use_AIC) {
     m <- readRDS(filename)
     AICmat[i, 1] <- AIC(m)
   }
+  # calculate and print out delta AIC table
+  
+  dAIC[, 1] <- AICmat[, 1] - min(AICmat[, 1])
+  dAIC[, 1] <- as.numeric(sprintf(dAIC, fmt = '%.2f'))
+  print(spc)
+  dAIC
+  
 }
 
 if (use_cv) {
@@ -192,17 +197,12 @@ if (use_cv) {
     m <- readRDS(filename)
     cvmat[i, 1] <- sum(m$sum_loglik)
   }
+  dcv <- cvmat - max(cvmat[,1])
+  dcv[, 1] <- as.numeric(sprintf(dcv, fmt = '%.2f'))
+  print(dcv)
 }
 
-dcv <- cvmat - max(cvmat[,1])
-dcv[, 1] <- as.numeric(sprintf(dcv, fmt = '%.2f'))
-print(dcv)
-# calculate and print out delta AIC table
 
-dAIC[, 1] <- AICmat[, 1] - min(AICmat[, 1])
-dAIC[, 1] <- as.numeric(sprintf(dAIC, fmt = '%.2f'))
-print(spc)
-dAIC
 
 # print best model
 best.index <- which(dAIC==0)
@@ -216,9 +216,12 @@ bp_par <- m$model$par[length(m$model$par)]
 # backconvert
 bp_par <- back.convert(bp_par, attr(dat$po2, "scaled:center"), attr(dat$po2, "scaled:scale"))
 
-
+back.convert(bp_par, attr(dat$po2, "scaled:center"), attr(dat$po2, "scaled:scale"))
+back.convert(c(--0.1576, 1.06), attr(dat$po2, "scaled:center"), attr(dat$po2, "scaled:scale"))
+back.convert(0.31, attr(dat$po2, "scaled:center"), attr(dat$po2, "scaled:scale"))
 # get breakpoint values for MI
 m <- readRDS(file = "output/wc/model_9_sablefishp2_p3.rds")
 bp_par <- m$model$par[length(m$model$par)]
 # backconvert
 bp_par <- back.convert(bp_par, attr(dat$mi, "scaled:center"), attr(dat$mi, "scaled:scale"))
+

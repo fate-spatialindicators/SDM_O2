@@ -1,5 +1,5 @@
 rm(list = ls())
-devtools::install_github("pbs-assess/sdmTMB")
+#devtools::install_github("pbs-assess/sdmTMB")
 source("code/mi_functions.R")
 library(sdmTMB)
 library(raster)
@@ -191,7 +191,7 @@ ggplot(us_coast_proj) + geom_sf() +
   facet_wrap(~year, ncol = 3) +
   scale_x_continuous(breaks = c(-125, -120), limits = xlimits) +
   ylim(ylimits[1], ylimits[2]) +
-  scale_colour_viridis_c(limits = c(0, 0.1), oob = scales::squish, name = bquote(pO[2])) +
+  scale_colour_viridis_c(limits = c(0, 10), oob = scales::squish, name = bquote(pO[2])) +
   labs(x = "Longitude", y = "Latitude") +
   theme_bw() +
   theme(panel.grid.major = element_blank()

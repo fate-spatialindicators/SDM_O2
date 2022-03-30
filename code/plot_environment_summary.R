@@ -18,45 +18,21 @@ no_depth <- FALSE # Do you want to run models w/out a depth effect?
 use_cv = FALSE # specify whether to do cross validation or not
 use_AIC = TRUE # specify whether to use AIC
 use_jscope <- F # specify whether to only use J-SCOPE based estimates.  Overrides compare_sources and fit.model
-dat<- load_data_number(fit.model, spc, constrain_latitude)
-#dat <- load_data(fit.model, spc, constrain_latitude)
+dat <- load_data(fit.model, spc, constrain_latitude)
 # only look at intermediate sized sablefish, 0.5 - 6 kg)
-#dat$cpue_kg_km2 <- dat$cpue_kg_km2 * (dat$p2 + dat$p3) 
-dat$cpue_no_km2 <- dat$cpue_no_km2 * (dat$p2 + dat$p3)
-
-kelvin = 273.15
-kb <- boltz <- 0.000086173324
-Eo <- 0.4525966 
-Ao <- 5.780791e-06
-n <- -0.303949 
-B = 1000 # size in grams, roughly average
-avebn <- 0.1124206
-logAo <- log(Ao)
-
-t.range <- 2:12
-k.range <- t.range + 273.15
-
-plot.phi <- data.frame(inv_temp =1/(k.range * kb), 
-                       logbnpo2 = -logAo - Eo/(kb * k.range))
-
-
-
-plot.obs <- data.frame(x = 1/((kelvin + 12) * kb), y = - logAo - Eo/(kb* (kelvin + 12)))
-dat$inv_temp <- 1 / (boltz * (dat$temp+kelvin))
-dat$logbnpo2 <- log(avebn * dat$po2)
-
+dat$cpue_kg_km2 <- dat$cpue_kg_km2 * (dat$p2 + dat$p3) 
 # only look at depths that are commonly inhabited by sablefish
 dat <- dplyr::filter(dat, depth >=100)
 
 pointsize <- 0.5
 alpha2use <- 0.7
-zlims <- c(4,7)
+zlims <- c(4,8)
 
 po2plot <- ggplot() + 
-  geom_point(data = dat, aes(x = po2, y = -(depth), col = log(cpue_no_km2)), alpha = alpha2use,size = pointsize) +
-  scale_x_continuous() +
-  scale_colour_viridis(limits = zlims,oob = scales::squish,name = bquote('log(abundance)'~(number~km^2))) +
-  labs(x = bquote(pO[2]~"(atm)"), y = "Depth (m)") +
+  geom_point(data = dat, aes(x = po2, y = -(depth), col = log(cpue_kg_km2)), alpha = alpha2use,size = pointsize) +
+  scale_x_continuous(limits = c(0, 15)) +
+  scale_colour_viridis(limits = zlims,oob = scales::squish,name = bquote('log(biomass)'~(kg~km^2))) +
+  labs(x = bquote(pO[2]~"(kPa)"), y = "Depth (m)") +
   #geom_line(data = plot.phi, aes(x = inv_temp, y = logbnpo2), size = 1.5) +
   theme_bw() +
   theme(panel.grid.major = element_blank()
@@ -72,9 +48,9 @@ po2plot <- ggplot() +
   
 
 miplot <- ggplot() + 
-  geom_point(data = dat, aes(x = mi, y = -(depth), col = log(cpue_no_km2)), alpha = alpha2use, size = pointsize, show.legend = FALSE) +
-  scale_x_continuous() +
-  scale_colour_viridis(limits = zlims,oob = scales::squish,name =  bquote('log(abundance)'~(number~km^2))) +
+  geom_point(data = dat, aes(x = mi, y = -(depth), col = log(cpue_kg_km2)), alpha = alpha2use, size = pointsize, show.legend = FALSE) +
+  scale_x_continuous(limits = c(0, 9)) +
+  scale_colour_viridis(limits = zlims,oob = scales::squish,name = bquote('log(biomass)'~(kg~km^2))) +
   labs(x = "Metabolic Index", y = "") +
   theme_bw() +
   theme(panel.grid.major = element_blank()
@@ -87,9 +63,9 @@ miplot <- ggplot() +
   theme(legend.text = element_text(size = 12))
 
 templot <- ggplot() + 
-  geom_point(data = dat, aes(x = temp, y = -(depth), col = log(cpue_no_km2)), alpha = alpha2use, size = pointsize,show.legend= FALSE) +
-  scale_x_continuous() +
-  scale_colour_viridis(limits = zlims,oob = scales::squish,name =  bquote('log(abundance)'~(number~km^2))) +
+  geom_point(data = dat, aes(x = temp, y = -(depth), col = log(cpue_kg_km2)), alpha = alpha2use, size = pointsize,show.legend= FALSE) +
+  scale_x_continuous(limits = c(0, 12.5)) +
+  scale_colour_viridis(limits = zlims,oob = scales::squish, name = bquote('log(biomass)'~(kg~km^2))) +
   labs(x = "Temperature", y = "") +
   theme_bw() +
   theme(panel.grid.major = element_blank()
